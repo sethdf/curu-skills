@@ -1,0 +1,15 @@
+# Secrets and tokens
+*.secret
+*.token
+secrets/
+credentials.json
+token.json
+
+# Cache and temp
+cache/
+*.cache
+*.tmp
+
+# Local config
+*.local
+config.local.json
