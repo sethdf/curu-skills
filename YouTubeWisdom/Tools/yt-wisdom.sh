@@ -43,7 +43,7 @@ APIFY_RESPONSE=$(curl -s --fail "https://api.apify.com/v2/acts/scrape-creators~b
     -d "{\"videoUrls\":[\"https://www.youtube.com/watch?v=$VIDEO_ID\"]}")
 
 # Extract transcript and title
-TRANSCRIPT=$(echo "$APIFY_RESPONSE" | jq -r '.[0].transcription // empty')
+TRANSCRIPT=$(echo "$APIFY_RESPONSE" | jq -r '.[0].transcript_only_text // empty')
 TITLE=$(echo "$APIFY_RESPONSE" | jq -r '.[0].title // "untitled"' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-50)
 
 [[ -z "$TRANSCRIPT" ]] && { echo "Error: Could not fetch transcript"; exit 1; }
