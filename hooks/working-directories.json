@@ -1,0 +1,19 @@
+{
+  "directories": [
+    "/home/ubuntu/work",
+    "/data/work",
+    "/data/home",
+    "/data/home/repos"
+  ],
+  "projectMarkers": [
+    ".git",
+    "CLAUDE.md",
+    ".claude",
+    "package.json",
+    "Cargo.toml",
+    "go.mod",
+    "pyproject.toml",
+    "requirements.txt",
+    "Makefile"
+  ]
+}
