@@ -7,9 +7,9 @@ Aggregate unread/pending messages from all communication platforms.
 1. **Check platforms in priority order:**
 
    ```
-   For each platform (Mail -> Slack -> Telegram -> Signal):
-     - Use auth-keeper or platform skill to get unread count
-     - Capture urgent/high-priority items
+   For each platform (Mail -> Calendar -> Slack -> Telegram -> Signal):
+     - Invoke the platform skill
+     - Capture unread counts and urgent items
      - Note any errors (platform unavailable, auth expired)
    ```
 
@@ -20,16 +20,23 @@ Aggregate unread/pending messages from all communication platforms.
    - Total unread across all platforms
    - Breakdown by platform
    - Urgent items highlighted
-   - Oldest unread age
+   - Upcoming calendar events
    ```
 
 3. **Present summary:**
 
-   ```
+   ```markdown
    ## Communications Summary
 
-   **Email (Work/MS365):** X unread (Y urgent)
-   **Email (Home/Gmail):** X unread
+   ### Email
+   **Work (MS365):** X unread (Y urgent)
+   **Home (Gmail):** X unread
+
+   ### Calendar
+   **Today:** X events
+   - Next: [Event name] at [time]
+
+   ### Messaging
    **Slack:** X mentions in Y channels
    **Telegram:** X messages
    **Signal:** X messages
@@ -44,26 +51,47 @@ Aggregate unread/pending messages from all communication platforms.
 
 ## Platform Invocation
 
-Use auth-keeper for email, skills for messaging:
+Invoke each skill in order. Use the Skill tool or direct commands:
 
-### Email (via auth-keeper)
-```bash
-# Work (MS365)
-source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh
-auth-keeper ms365 "Get-MgUserMessage -UserId 'sfoley@buxtonco.com' -Filter 'isRead eq false' -CountVariable c -Top 1; Write-Host \"MS365 Unread: \$c\""
-
-# Home (Gmail)
-auth-keeper google mail
+### 1. Email (Mail skill)
+```
+Invoke Mail skill for email triage:
+- Work context: MS365 unread count and urgent items
+- Home context: Gmail unread count
 ```
 
-### Messaging (via skills)
-- Skill(slack) or `/slack unread`
-- Skill(telegram) or `/telegram unread`
-- Signal: `~/bin/signal-interface status`
+### 2. Calendar (Calendar skill)
+```
+Invoke Calendar skill for today's schedule:
+- Work context: MS365 calendar
+- Home context: Google calendar
+- Show next upcoming event
+```
+
+### 3. Slack (Slack skill)
+```
+Invoke Slack skill:
+- Unread mentions
+- DMs
+- Priority channels
+```
+
+### 4. Telegram (Telegram skill)
+```
+Invoke Telegram skill:
+- Unread messages
+- Group mentions
+```
+
+### 5. Signal
+```
+Check Signal via signal-interface:
+~/bin/signal-interface status
+```
 
 ## Error Handling
 
 If a platform fails:
-- Note the error in summary
+- Note the error in summary (e.g., "Slack: auth expired")
 - Continue with other platforms
-- Suggest remediation (re-auth, check config)
+- Suggest remediation at end
