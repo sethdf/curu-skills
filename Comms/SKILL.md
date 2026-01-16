@@ -14,8 +14,8 @@ Unified communications dashboard that aggregates all messaging platforms and hel
 
 ## Priority Order
 
-1. **MS365** (Outlook email + calendar) - Work first
-2. **Gmail** (email + calendar) - Personal
+1. **Mail** (context-aware: MS365 or Gmail via auth-keeper)
+2. **Calendar** (context-aware: MS365 or Google via auth-keeper)
 3. **Slack** - Team messaging
 4. **Telegram** - Personal messaging
 5. **Signal** - Secure messaging
@@ -64,17 +64,15 @@ User: "Add that meeting request to my calendar"
 
 ## Platform Skills
 
-Comms delegates to platform-specific skills:
+Comms delegates to context-aware skills:
 
-| Platform | Skill | Status |
-|----------|-------|--------|
-| MS365 Email | Outlook | Available |
-| MS365 Calendar | OutlookCalendar | Available |
-| Gmail | Gmail | Available |
-| Google Calendar | GoogleCalendar | Available |
-| Slack | Slack | Available |
-| Telegram | Telegram | Available |
-| Signal | signal-interface | Partial |
+| Platform | Skill | Backend |
+|----------|-------|---------|
+| Email | Mail | auth-keeper (MS365 or Gmail based on CONTEXT) |
+| Calendar | Calendar | auth-keeper (MS365 or Google based on CONTEXT) |
+| Slack | Slack | Slack API |
+| Telegram | Telegram | Telegram Bot API |
+| Signal | signal-interface | signal-cli |
 | iMessage | - | Planned |
 | SMS | - | Planned |
 

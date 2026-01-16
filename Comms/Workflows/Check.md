@@ -7,8 +7,8 @@ Aggregate unread/pending messages from all communication platforms.
 1. **Check platforms in priority order:**
 
    ```
-   For each platform (MS365 -> Gmail -> Slack -> Telegram -> Signal):
-     - Invoke the platform skill to get unread count and summaries
+   For each platform (Mail -> Slack -> Telegram -> Signal):
+     - Use auth-keeper or platform skill to get unread count
      - Capture urgent/high-priority items
      - Note any errors (platform unavailable, auth expired)
    ```
@@ -28,8 +28,8 @@ Aggregate unread/pending messages from all communication platforms.
    ```
    ## Communications Summary
 
-   **Outlook:** X unread (Y urgent)
-   **Gmail:** X unread
+   **Email (Work/MS365):** X unread (Y urgent)
+   **Email (Home/Gmail):** X unread
    **Slack:** X mentions in Y channels
    **Telegram:** X messages
    **Signal:** X messages
@@ -38,18 +38,27 @@ Aggregate unread/pending messages from all communication platforms.
    - [Platform] From: sender - Subject/preview
 
    ### Recommended Actions
-   - Start with urgent Outlook items
+   - Start with urgent work email
    - Then process Slack mentions
    ```
 
 ## Platform Invocation
 
-Use the Skill tool to invoke each platform:
+Use auth-keeper for email, skills for messaging:
 
-- `/outlook unread` or Skill(outlook)
-- `/gmail unread` or Skill(gmail)
-- `/slack unread` or Skill(slack)
-- `/telegram unread` or Skill(telegram)
+### Email (via auth-keeper)
+```bash
+# Work (MS365)
+source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh
+auth-keeper ms365 "Get-MgUserMessage -UserId 'sfoley@buxtonco.com' -Filter 'isRead eq false' -CountVariable c -Top 1; Write-Host \"MS365 Unread: \$c\""
+
+# Home (Gmail)
+auth-keeper google mail
+```
+
+### Messaging (via skills)
+- Skill(slack) or `/slack unread`
+- Skill(telegram) or `/telegram unread`
 - Signal: `~/bin/signal-interface status`
 
 ## Error Handling
