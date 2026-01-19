@@ -1144,6 +1144,10 @@ EOF
             ;;
 
         sdp|SDP)
+            # Zone awareness: SDP is work-only
+            if [[ "${ZONE:-}" != "work" ]]; then
+                echo "⚠️  SDP is a work tool (zone: ${ZONE:-unset}, expected: work)" >&2
+            fi
             shift
             case "${1:-}" in
                 ""|"my"|"assigned")
