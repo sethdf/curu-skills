@@ -126,13 +126,16 @@ User: "/sdp suggest"
 | `403 Forbidden` | No permission for action | Check technician permissions in SDP |
 | `400 Bad Request` | Malformed query | Validate JSON input_data format |
 
-## Future: auth-keeper Integration
+## Backend
 
-Currently uses direct BWS access. Plan to add to auth-keeper:
+Uses `auth-keeper sdp` for all operations. Credentials stored in BWS.
 
 ```bash
-# Future usage
-auth-keeper sdp requests
-auth-keeper sdp note 12345 "message"
-auth-keeper sdp reply 12345 "message"
+# Via auth-keeper
+auth-keeper sdp                     # List my tickets
+auth-keeper sdp overdue             # Overdue tickets
+auth-keeper sdp get 12345           # Ticket details
+auth-keeper sdp note 12345 "msg"    # Add note
+auth-keeper sdp reply 12345 "msg"   # Reply to requester
+auth-keeper sdp auth                # Test connection
 ```

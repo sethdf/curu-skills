@@ -1415,6 +1415,8 @@ if [[ -n "${ZSH_VERSION:-}" ]] && command -v compdef &>/dev/null; then
             'google:Google API access'
             'slack:Slack API access'
             'telegram:Telegram Bot API access'
+            'signal:Signal REST API access'
+            'sdp:ServiceDesk Plus ticket management'
             'refresh:Force token refresh'
             'help:Show help'
         )
@@ -1430,7 +1432,9 @@ elif [[ -n "${BASH_VERSION:-}" ]]; then
             ms365) mapfile -t COMPREPLY < <(compgen -W "--interactive --help" -- "$cur") ;;
             slack) mapfile -t COMPREPLY < <(compgen -W "channels read send auth --help" -- "$cur") ;;
             telegram) mapfile -t COMPREPLY < <(compgen -W "updates send auth --help" -- "$cur") ;;
-            *) mapfile -t COMPREPLY < <(compgen -W "status ms365 google slack telegram refresh help" -- "$cur") ;;
+            signal) mapfile -t COMPREPLY < <(compgen -W "receive send link auth --help" -- "$cur") ;;
+            sdp) mapfile -t COMPREPLY < <(compgen -W "my overdue get note reply auth --help" -- "$cur") ;;
+            *) mapfile -t COMPREPLY < <(compgen -W "status ms365 google slack telegram signal sdp refresh help" -- "$cur") ;;
         esac
     }
     complete -F _auth_keeper_comp auth-keeper
