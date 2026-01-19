@@ -1,6 +1,6 @@
 ---
 name: Calendar
-description: Context-aware calendar management via auth-keeper. USE WHEN checking calendar OR scheduling meetings OR finding free time OR viewing schedule. Routes to MS365 (work) or Google Calendar (home) based on CONTEXT.
+description: Zone-aware calendar management via auth-keeper. USE WHEN checking calendar OR scheduling meetings OR finding free time OR viewing schedule. Routes to MS365 (work) or Google Calendar (home) based on ZONE.
 ---
 
 ## Customization
@@ -12,22 +12,22 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 # Calendar
 
-Context-aware calendar skill using auth-keeper backend. Automatically routes to MS365 Outlook Calendar (work context) or Google Calendar (home context).
+Zone-aware calendar skill using auth-keeper backend. Automatically routes to MS365 Outlook Calendar (work zone) or Google Calendar (home zone).
 
-## Context Routing
+## Zone Routing
 
-| Context | Backend | Command |
+| Zone | Backend | Command |
 |---------|---------|---------|
 | `work` | MS365 Graph API (PowerShell) | `auth-keeper ms365 "Get-MgUserEvent..."` |
 | `home` | Google Calendar API (curl) | `auth-keeper google calendar` |
 
-**Detection:** Uses `$CONTEXT` environment variable set by direnv.
+**Detection:** Uses `$ZONE` environment variable set by direnv.
 
 ## Quick Reference
 
 ```bash
-# Check context
-echo $CONTEXT
+# Check zone
+echo $ZONE
 
 # Work context (MS365)
 auth-keeper ms365 "Get-MgUserEvent -UserId 'sfoley@buxtonco.com' -Top 10"
@@ -49,7 +49,7 @@ auth-keeper google calendar
 **Example 1: Check today's schedule**
 ```
 User: "What's on my calendar today?"
-→ Detects CONTEXT (work or home)
+→ Detects ZONE (work or home)
 → If work: Get-MgUserEvent with today's date filter
 → If home: auth-keeper google calendar
 → Shows today's events with times
@@ -58,7 +58,7 @@ User: "What's on my calendar today?"
 **Example 2: View the week**
 ```
 User: "Show me this week's calendar"
-→ Detects CONTEXT
+→ Detects ZONE
 → Queries events for next 7 days
 → Groups by day and shows schedule
 ```
@@ -73,7 +73,7 @@ User: "When am I free tomorrow?"
 
 ## MS365 PowerShell Commands
 
-Common commands for work context:
+Common commands for work zone:
 
 ```powershell
 # Today's events
@@ -93,7 +93,7 @@ New-MgUserEvent -UserId 'sfoley@buxtonco.com' -Subject "Meeting" -Start @{DateTi
 
 ## Google Calendar Commands
 
-Commands for home context:
+Commands for home zone:
 
 ```bash
 # Today's events
@@ -111,7 +111,7 @@ curl -s "https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `CONTEXT not set` | Not in work/home directory | `cd` to context directory or `export CONTEXT=work` |
+| `ZONE not set` | Not in work/home directory | `cd` to zone directory or `export ZONE=work` |
 | `BWS not available` | Bitwarden Secrets not initialized | Run `bws login` |
 | `Token expired` | Google OAuth expired | Run `auth-keeper google --auth` |
 | `CalendarId required` | Wrong PowerShell cmdlet | Use `Get-MgUserEvent` not `Get-MgUserCalendarEvent` |
