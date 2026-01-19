@@ -2,25 +2,32 @@
 
 ## Prerequisites
 
-- [ ] PAI core installed (`~/.claude/` directory exists)
-- [ ] Claude Code CLI available
+- [ ] Claude Code CLI installed (`~/.claude/` directory exists)
 - [ ] Bun runtime installed
+
+## What This Pack Does
+
+Installs Curu identity files to `~/.claude/USER/` following the PAI pattern:
+- AI identity (Curu)
+- User info (Seth)
+- Tech stack preferences
+- Contacts
 
 ## Installation Steps
 
-### Step 1: Symlink CORE skill from curu-skills
-
-This pack references the CORE skill in the parent curu-skills repository:
+### Step 1: Copy USER directory to ~/.claude/
 
 ```bash
-CURU_SKILLS="/path/to/curu-skills"  # Adjust to your path
-ln -sf "$CURU_SKILLS/CORE" ~/.claude/skills/CORE
+# From the pack directory
+cp -r src/USER/* ~/.claude/USER/
 ```
 
-Or if symlinking entire skills directory:
+Or with the pack path:
 
 ```bash
-ln -sf /path/to/curu-skills ~/.claude/skills
+PACK_DIR="/path/to/curu-skills/packs/curu-identity-pack"
+mkdir -p ~/.claude/USER
+cp -r "$PACK_DIR/src/USER/"* ~/.claude/USER/
 ```
 
 ### Step 2: Update settings.json with Curu identity
@@ -50,21 +57,42 @@ Ensure the following are set in `~/.claude/settings.json`:
 
 Run the verification procedure in [VERIFY.md](VERIFY.md).
 
-## Skill Location
+## Identity Files
 
-This pack references the CORE skill located at `../../CORE/` relative to this pack.
+This pack installs the following to `~/.claude/USER/`:
 
-The CORE skill contains:
-- `SKILL.md` - Skill definition and session-start context
-- `USER/` - User profile files (ABOUTME.md, BASICINFO.md, DAIDENTITY.md, etc.)
-- `Contacts.md` - Contact directory
-- `CoreStack.md` - Technology preferences
+| File | Purpose |
+|------|---------|
+| DAIDENTITY.md | Curu AI identity definition |
+| BASICINFO.md | User basic info (Seth) |
+| TECHSTACKPREFERENCES.md | Tech stack (Bun, TypeScript, etc.) |
+| CONTACTS.md | Contact directory |
+| ABOUTME.md | User background |
+| CoreStack.md | Additional stack preferences |
+| Contacts.md | Alternative contacts format |
+| PAISECURITYSYSTEM/ | Security patterns |
+
+## How It Works
+
+The `load-core-context.ts` SessionStart hook reads from `~/.claude/USER/` and injects identity context into each session. This follows the PAI pattern where:
+
+- `~/.claude/USER/` = Identity (not a skill)
+- `~/.claude/skills/` = Action skills only
 
 ## Uninstallation
 
 ```bash
-# Remove symlink (not the source skill)
-rm ~/.claude/skills/CORE
+rm -rf ~/.claude/USER/*
 ```
 
 Then update `settings.json` to remove Curu-specific identity settings.
+
+## Rebuilding
+
+To rebuild identity from source:
+
+```bash
+PACK_DIR="/path/to/curu-skills/packs/curu-identity-pack"
+rm -rf ~/.claude/USER/*
+cp -r "$PACK_DIR/src/USER/"* ~/.claude/USER/
+```
