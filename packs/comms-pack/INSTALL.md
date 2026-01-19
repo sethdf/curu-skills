@@ -12,34 +12,39 @@
 
 ## Installation Steps
 
-### Step 1: Create skills directory (if not exists)
+### Step 1: Symlink skills from curu-skills
+
+This pack references skills in the parent curu-skills repository. The recommended installation is to symlink the entire curu-skills directory:
 
 ```bash
-mkdir -p ~/.claude/skills
+# If not already done, symlink all skills
+ln -sf /path/to/curu-skills ~/.claude/skills
 ```
 
-### Step 2: Copy skills
+Or symlink individual comms skills:
 
 ```bash
-cp -r src/skills/Calendar ~/.claude/skills/
-cp -r src/skills/Mail ~/.claude/skills/
-cp -r src/skills/Slack ~/.claude/skills/
-cp -r src/skills/Telegram ~/.claude/skills/
-cp -r src/skills/Signal ~/.claude/skills/
-cp -r src/skills/Comms ~/.claude/skills/
+CURU_SKILLS="/path/to/curu-skills"  # Adjust to your path
+ln -sf "$CURU_SKILLS/Calendar" ~/.claude/skills/
+ln -sf "$CURU_SKILLS/Mail" ~/.claude/skills/
+ln -sf "$CURU_SKILLS/Slack" ~/.claude/skills/
+ln -sf "$CURU_SKILLS/Telegram" ~/.claude/skills/
+ln -sf "$CURU_SKILLS/Signal" ~/.claude/skills/
+ln -sf "$CURU_SKILLS/Comms" ~/.claude/skills/
 ```
 
-### Step 3: Copy scripts to bin
+### Step 2: Copy scripts to bin
 
 ```bash
 mkdir -p ~/bin
-cp src/scripts/signal-inbox.sh ~/bin/
-cp src/scripts/signal-interface.sh ~/bin/
-cp src/scripts/telegram-inbox.sh ~/bin/
+PACK_DIR="$(dirname "$(realpath "$0")")"
+cp "$PACK_DIR/src/scripts/signal-inbox.sh" ~/bin/
+cp "$PACK_DIR/src/scripts/signal-interface.sh" ~/bin/
+cp "$PACK_DIR/src/scripts/telegram-inbox.sh" ~/bin/
 chmod +x ~/bin/signal-*.sh ~/bin/telegram-*.sh
 ```
 
-### Step 4: Configure environment variables (optional)
+### Step 3: Configure environment variables (optional)
 
 Add to `~/.claude/settings.json` env section or `~/.bashrc`:
 
@@ -49,23 +54,22 @@ export TELEGRAM_CHAT_ID="your-default-chat-id"
 export SIGNAL_RECIPIENT="+1234567890"
 ```
 
-### Step 5: Verify installation
+### Step 4: Verify installation
 
 Run the verification procedure in [VERIFY.md](VERIFY.md).
 
-## Alternative: Symlink Installation
+## Skills Included
 
-If maintaining skills in the curu-skills repository:
+This pack provides the following skills (located in `../../` relative to this pack):
 
-```bash
-# Link entire skills directory
-ln -sf ~/repos/github.com/sethdf/curu-skills/Calendar ~/.claude/skills/Calendar
-ln -sf ~/repos/github.com/sethdf/curu-skills/Mail ~/.claude/skills/Mail
-ln -sf ~/repos/github.com/sethdf/curu-skills/Slack ~/.claude/skills/Slack
-ln -sf ~/repos/github.com/sethdf/curu-skills/Telegram ~/.claude/skills/Telegram
-ln -sf ~/repos/github.com/sethdf/curu-skills/Signal ~/.claude/skills/Signal
-ln -sf ~/repos/github.com/sethdf/curu-skills/Comms ~/.claude/skills/Comms
-```
+| Skill | Location | Purpose |
+|-------|----------|---------|
+| Calendar | `../../Calendar/` | Calendar management (MS365/Google) |
+| Mail | `../../Mail/` | Email management (MS365/Gmail) |
+| Slack | `../../Slack/` | Slack messaging |
+| Telegram | `../../Telegram/` | Telegram messaging |
+| Signal | `../../Signal/` | Signal messaging |
+| Comms | `../../Comms/` | Unified communications triage |
 
 ## Service-Specific Setup
 
@@ -107,11 +111,14 @@ signal-cli link -n "imladris"
 ## Uninstallation
 
 ```bash
-rm -rf ~/.claude/skills/Calendar
-rm -rf ~/.claude/skills/Mail
-rm -rf ~/.claude/skills/Slack
-rm -rf ~/.claude/skills/Telegram
-rm -rf ~/.claude/skills/Signal
-rm -rf ~/.claude/skills/Comms
+# Remove symlinks (not the source skills)
+rm ~/.claude/skills/Calendar
+rm ~/.claude/skills/Mail
+rm ~/.claude/skills/Slack
+rm ~/.claude/skills/Telegram
+rm ~/.claude/skills/Signal
+rm ~/.claude/skills/Comms
+
+# Remove scripts
 rm ~/bin/signal-*.sh ~/bin/telegram-*.sh
 ```

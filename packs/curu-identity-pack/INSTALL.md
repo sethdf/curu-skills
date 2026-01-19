@@ -8,32 +8,22 @@
 
 ## Installation Steps
 
-### Step 1: Create skills directory (if not exists)
+### Step 1: Symlink CORE skill from curu-skills
+
+This pack references the CORE skill in the parent curu-skills repository:
 
 ```bash
-mkdir -p ~/.claude/skills/CORE
+CURU_SKILLS="/path/to/curu-skills"  # Adjust to your path
+ln -sf "$CURU_SKILLS/CORE" ~/.claude/skills/CORE
 ```
 
-### Step 2: Copy SKILL.md to CORE skill
+Or if symlinking entire skills directory:
 
 ```bash
-cp src/SKILL.md ~/.claude/skills/CORE/
+ln -sf /path/to/curu-skills ~/.claude/skills
 ```
 
-### Step 3: Copy USER directory
-
-```bash
-cp -r src/USER ~/.claude/skills/CORE/
-```
-
-### Step 4: Copy configuration files
-
-```bash
-cp src/Contacts.md ~/.claude/skills/CORE/
-cp src/CoreStack.md ~/.claude/skills/CORE/
-```
-
-### Step 5: Update settings.json with Curu identity
+### Step 2: Update settings.json with Curu identity
 
 Ensure the following are set in `~/.claude/settings.json`:
 
@@ -56,26 +46,25 @@ Ensure the following are set in `~/.claude/settings.json`:
 }
 ```
 
-### Step 6: Verify installation
+### Step 3: Verify installation
 
 Run the verification procedure in [VERIFY.md](VERIFY.md).
 
-## Alternative: Symlink Installation
+## Skill Location
 
-If maintaining the pack in a separate repository:
+This pack references the CORE skill located at `../../CORE/` relative to this pack.
 
-```bash
-# Remove existing CORE skill
-rm -rf ~/.claude/skills/CORE
-
-# Create symlink to pack source
-ln -s /path/to/curu-packs/curu-identity-pack/src ~/.claude/skills/CORE
-```
+The CORE skill contains:
+- `SKILL.md` - Skill definition and session-start context
+- `USER/` - User profile files (ABOUTME.md, BASICINFO.md, DAIDENTITY.md, etc.)
+- `Contacts.md` - Contact directory
+- `CoreStack.md` - Technology preferences
 
 ## Uninstallation
 
 ```bash
-rm -rf ~/.claude/skills/CORE
+# Remove symlink (not the source skill)
+rm ~/.claude/skills/CORE
 ```
 
 Then update `settings.json` to remove Curu-specific identity settings.
