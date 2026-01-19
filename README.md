@@ -289,7 +289,7 @@ Not directly invocable. Used by `/CreateSkill` as a reference for adding context
 
 ### Context Detection Methods
 
-1. **Environment Variables** - Check `$CONTEXT` (set by direnv)
+1. **Environment Variables** - Check `$ZONE` (set by direnv)
 2. **Directory Detection** - Check current working directory patterns
 3. **SessionStart Hooks** - Auto-inject context on Claude session start
 4. **Marker Files** - Look for `.ticket.json`, `.project.json`, etc.
@@ -298,7 +298,7 @@ Not directly invocable. Used by `/CreateSkill` as a reference for adding context
 
 | Variable | Source | Values | Purpose |
 |----------|--------|--------|---------|
-| `CONTEXT` | `.envrc` | `work`, `home` | Primary context |
+| `ZONE` | `.envrc` | `work`, `home` | Primary zone |
 | `GHQ_ROOT` | `.envrc` | Path | Repository root |
 | `SDP_TICKETS_DIR` | `.envrc` | Path | Ticket workspace |
 

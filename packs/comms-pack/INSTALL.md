@@ -49,7 +49,7 @@ chmod +x ~/bin/signal-*.sh ~/bin/telegram-*.sh
 Add to `~/.claude/settings.json` env section or `~/.bashrc`:
 
 ```bash
-export PAI_CONTEXT="work"  # Default context
+export ZONE="work"  # Default zone
 export TELEGRAM_CHAT_ID="your-default-chat-id"
 export SIGNAL_RECIPIENT="+1234567890"
 ```

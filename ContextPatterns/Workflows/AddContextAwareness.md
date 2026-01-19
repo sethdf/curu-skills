@@ -10,7 +10,7 @@ Determine which context detection method fits:
 
 | If skill needs to... | Use |
 |---------------------|-----|
-| Behave differently in work vs home | Environment variable (`CONTEXT`) |
+| Behave differently in work vs home | Environment variable (`ZONE`) |
 | Auto-load data from current directory | Directory detection + marker file |
 | Inject context at session start | SessionStart hook |
 | All of the above | Combine methods |
@@ -21,13 +21,13 @@ In your skill's tools or SKILL.md:
 
 ```typescript
 // In Tools/MyTool.ts
-const context = process.env.CONTEXT || "default";
+const context = process.env.ZONE || "default";
 ```
 
 ```markdown
 <!-- In SKILL.md -->
 ## Context Behavior
-Check `CONTEXT` environment variable:
+Check `ZONE` environment variable:
 - `work`: [work-specific instructions]
 - `home`: [home-specific instructions]
 ```
@@ -92,7 +92,7 @@ This skill is context-aware:
 
 ```bash
 # Test environment detection
-CONTEXT=work bun run Tools/MyTool.ts
+ZONE=work bun run Tools/MyTool.ts
 
 # Test hook
 cd ~/work/myskill/test-context

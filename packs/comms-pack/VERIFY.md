@@ -84,7 +84,7 @@ Expected: Shows unified view across multiple platforms
 ### Test work context
 
 ```bash
-PAI_CONTEXT=work claude -p "/calendar today"
+ZONE=work claude -p "/calendar today"
 ```
 
 Expected: Returns MS365 calendar events
@@ -92,7 +92,7 @@ Expected: Returns MS365 calendar events
 ### Test home context
 
 ```bash
-PAI_CONTEXT=home claude -p "/calendar today"
+ZONE=home claude -p "/calendar today"
 ```
 
 Expected: Returns Google Calendar events
