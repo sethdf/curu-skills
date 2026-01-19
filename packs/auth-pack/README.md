@@ -3,12 +3,12 @@ name: Auth Pack
 pack-id: sethdf-auth-pack-v1.0.0
 version: 1.0.0
 author: sethdf
-description: Multi-cloud authentication management for Claude Code - unified auth-keeper for AWS, Azure, MS365, Google, Slack, Telegram, and Signal
+description: Multi-cloud authentication management for Claude Code - unified auth-keeper for AWS, Azure, MS365, Google, Slack, Telegram, Signal, and ServiceDesk Plus
 type: infrastructure
 purpose-type: [authentication, security, infrastructure]
 platform: claude-code
 dependencies: [pai-core-install, bws-cli]
-keywords: [auth, authentication, oauth, aws, azure, ms365, google, slack, telegram, signal]
+keywords: [auth, authentication, oauth, aws, azure, ms365, google, slack, telegram, signal, sdp, servicedesk]
 ---
 
 # Auth Pack (auth-pack)
@@ -30,7 +30,7 @@ keywords: [auth, authentication, oauth, aws, azure, ms365, google, slack, telegr
 
 **Summary:**
 - **Scripts:** 4
-- **Supported services:** 7 (AWS, Azure, MS365, Google, Slack, Telegram, Signal)
+- **Supported services:** 8 (AWS, Azure, MS365, Google, Slack, Telegram, Signal, SDP)
 - **Dependencies:** bws (Bitwarden Secrets), AWS CLI, Azure CLI, signal-cli
 
 ## The Problem
@@ -101,6 +101,7 @@ claude-backend.sh personal  # Use personal API
 | Slack | OAuth2 Token | ~/.claude/.credentials.json |
 | Telegram | Bot Token | BWS |
 | Signal | Linked Device | ~/.local/share/signal-cli/ |
+| SDP (ServiceDesk Plus) | API Key | BWS |
 
 ## Architecture
 
@@ -119,6 +120,7 @@ claude-backend.sh personal  # Use personal API
 |  - slack_*()     |
 |  - telegram_*()  |
 |  - signal_*()    |
+|  - sdp_*()       |
 +------------------+
         |
         v
