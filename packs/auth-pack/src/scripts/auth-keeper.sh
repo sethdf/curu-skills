@@ -526,6 +526,47 @@ _ak_signal_api_running() {
 }
 
 # ============================================================================
+# SDP (ServiceDesk Plus) - REST API
+# ============================================================================
+
+_ak_sdp_user="sfoley@buxtonco.com"
+
+_ak_sdp_get_creds() {
+    _ak_sdp_api_key="${SDP_API_KEY:-$(_ak_bws_get 'sdp-api-key')}"
+    _ak_sdp_base_url="${SDP_BASE_URL:-$(_ak_bws_get 'sdp-base-url')}"
+
+    if [[ -z "$_ak_sdp_api_key" ]]; then
+        echo "Error: No SDP API key. Set SDP_API_KEY or add sdp-api-key to BWS" >&2
+        return 1
+    fi
+
+    if [[ -z "$_ak_sdp_base_url" ]]; then
+        echo "Error: No SDP base URL. Set SDP_BASE_URL or add sdp-base-url to BWS" >&2
+        return 1
+    fi
+}
+
+_ak_sdp_api() {
+    local method="$1"
+    local endpoint="$2"
+    shift 2
+
+    _ak_sdp_get_creds || return 1
+
+    curl -s -X "$method" "${_ak_sdp_base_url}${endpoint}" \
+        -H "authtoken: $_ak_sdp_api_key" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        "$@"
+}
+
+_ak_sdp_configured() {
+    local key url
+    key="${SDP_API_KEY:-$(_ak_bws_get 'sdp-api-key' 2>/dev/null)}"
+    url="${SDP_BASE_URL:-$(_ak_bws_get 'sdp-base-url' 2>/dev/null)}"
+    [[ -n "$key" && -n "$url" ]]
+}
+
+# ============================================================================
 # Tailscale
 # ============================================================================
 
@@ -618,6 +659,13 @@ auth-keeper() {
                 fi
             else
                 echo "signal: API not running (docker start signal-cli-rest-api)"
+            fi
+
+            # SDP (ServiceDesk Plus)
+            if _ak_sdp_configured; then
+                echo "sdp: configured (user: $_ak_sdp_user)"
+            else
+                echo "sdp: not configured (need sdp-api-key and sdp-base-url in BWS)"
             fi
 
             # Tailscale
