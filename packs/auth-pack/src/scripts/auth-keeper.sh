@@ -1371,6 +1371,7 @@ Commands:
   slack [cmd]         Slack API access (bot token)
   telegram [cmd]      Telegram Bot API access
   signal [cmd]        Signal REST API access (Docker)
+  sdp [cmd]           ServiceDesk Plus ticket management
   refresh [service]   Force token refresh
   help                Show this help
 
@@ -1384,6 +1385,8 @@ Service Access:
   auth-keeper slack send #ch "msg"     Send Slack message
   auth-keeper telegram updates         Get Telegram updates
   auth-keeper telegram send "msg"      Send Telegram message
+  auth-keeper sdp                      List my SDP tickets
+  auth-keeper sdp note 12345 "msg"     Add note to ticket
 
 Environment:
   AUTH_KEEPER_NOTIFY         signal, telegram, bell, none (default: signal)
