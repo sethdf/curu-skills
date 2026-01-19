@@ -1,11 +1,14 @@
 ---
 name: Slack
 description: Slack workspace integration for team messaging. USE WHEN sending slack messages, reading channels, searching slack, managing workspace communications. Invoke with /slack.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
 ---
+
+## Customization
+
+**Before executing, check for user customizations at:**
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/Slack/`
+
+If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
 # Slack
 

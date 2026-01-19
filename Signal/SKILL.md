@@ -1,11 +1,14 @@
 ---
 name: Signal
 description: Signal secure messaging via signal-cli REST API. USE WHEN sending signal messages, checking signal, secure messaging. Invoke with /signal.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
 ---
+
+## Customization
+
+**Before executing, check for user customizations at:**
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/Signal/`
+
+If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
 # Signal
 

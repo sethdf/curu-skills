@@ -1,15 +1,24 @@
 ---
 name: YouTubeWisdom
 description: Extract wisdom from YouTube videos using Apify + fabric. USE WHEN user wants to analyze YouTube content, extract insights from videos, or save video wisdom. Invoke with /yt-wisdom.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
 ---
+
+## Customization
+
+**Before executing, check for user customizations at:**
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/YouTubeWisdom/`
+
+If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
 # YouTubeWisdom
 
 Extracts wisdom from YouTube videos by fetching transcripts via Apify and processing through fabric patterns.
+
+## Workflow Routing
+
+| Workflow | Trigger | File |
+|----------|---------|------|
+| **Extract** | "/yt-wisdom", "extract wisdom from video" | `Workflows/Extract.md` |
 
 ## Quick Start
 
