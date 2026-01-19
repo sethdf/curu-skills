@@ -3,6 +3,13 @@ name: MailReview
 description: AI-assisted email triage review. USE WHEN reviewing email classifications OR approving mail actions OR checking pending email transactions. Integrates with mailprocessing project.
 ---
 
+## Customization
+
+**Before executing, check for user customizations at:**
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/MailReview/`
+
+If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
+
 # MailReview
 
 AI-assisted review of email classifications and pending actions from the mail processor.

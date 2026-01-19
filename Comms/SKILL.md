@@ -1,12 +1,14 @@
 ---
 name: Comms
 description: Unified communications assistant. USE WHEN user says /comms OR check messages OR inbox zero OR catch up on messages OR check email and slack OR triage communications. Aggregates MS365, Gmail, Slack, Telegram, Signal.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Skill
 ---
+
+## Customization
+
+**Before executing, check for user customizations at:**
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/Comms/`
+
+If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
 # Comms
 

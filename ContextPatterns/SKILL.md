@@ -3,6 +3,13 @@ name: ContextPatterns
 description: Context-aware skill patterns. USE WHEN creating context-aware skills OR adding hooks OR environment detection. Reference for CreateSkill.
 ---
 
+## Customization
+
+**Before executing, check for user customizations at:**
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/ContextPatterns/`
+
+If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
+
 # ContextPatterns
 
 Patterns and templates for building context-aware skills that respond to environment, directory, or session state.

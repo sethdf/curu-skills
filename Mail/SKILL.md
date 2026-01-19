@@ -1,12 +1,14 @@
 ---
 name: Mail
 description: Context-aware email management via auth-keeper. USE WHEN checking email OR sending email OR searching mail OR inbox triage OR reading messages. Routes to MS365 (work) or Gmail (home) based on CONTEXT.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
 ---
+
+## Customization
+
+**Before executing, check for user customizations at:**
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/Mail/`
+
+If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
 # Mail
 
