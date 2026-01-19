@@ -43,12 +43,12 @@ Extracts wisdom from YouTube videos by fetching transcripts via Apify and proces
 
 ```bash
 # Direct script usage
-~/.claude/skills/YouTubeWisdom/Tools/yt-wisdom.sh <url> [pattern] [--stdout]
+~/.claude/skills/YouTubeWisdom/Tools/YtWisdom.sh <url> [pattern] [--stdout]
 
 # Examples
-yt-wisdom.sh "https://youtube.com/watch?v=abc123"
-yt-wisdom.sh "https://youtube.com/watch?v=abc123" summarize
-yt-wisdom.sh "https://youtube.com/watch?v=abc123" extract_wisdom --stdout
+YtWisdom.sh "https://youtube.com/watch?v=abc123"
+YtWisdom.sh "https://youtube.com/watch?v=abc123" summarize
+YtWisdom.sh "https://youtube.com/watch?v=abc123" extract_wisdom --stdout
 ```
 
 ## Patterns
