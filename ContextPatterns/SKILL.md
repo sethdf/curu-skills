@@ -28,7 +28,7 @@ Use the `CONTEXT` environment variable set by direnv:
 
 ```typescript
 // TypeScript
-const context = process.env.CONTEXT; // "work" | "home" | undefined
+const context = process.env.ZONE; // "work" | "home" | undefined
 
 if (context === "work") {
   // Work-specific behavior
@@ -39,7 +39,7 @@ if (context === "work") {
 
 ```bash
 # Bash
-if [[ "$CONTEXT" == "work" ]]; then
+if [[ "$ZONE" == "work" ]]; then
   # Work-specific behavior
 fi
 ```
@@ -47,8 +47,8 @@ fi
 ```markdown
 <!-- In SKILL.md instructions -->
 ## Context Behavior
-- When CONTEXT=work: Use formal tone, Outlook, SDP
-- When CONTEXT=home: Use casual tone, Gmail, Telegram
+- When ZONE=work: Use formal tone, Outlook, SDP
+- When ZONE=home: Use casual tone, Gmail, Telegram
 ```
 
 ### 2. Directory-Based Detection
@@ -196,7 +196,7 @@ Skills can rely on direnv-managed environment variables:
 
 | Variable | Set By | Values | Purpose |
 |----------|--------|--------|---------|
-| `CONTEXT` | `.envrc` | `work`, `home` | Primary context indicator |
+| `ZONE` | `.envrc` | `work`, `home` | Primary zone indicator |
 | `GHQ_ROOT` | `.envrc` | Path | Repository root for context |
 | `SDP_TICKETS_DIR` | `.envrc` | Path | Ticket workspace location |
 
@@ -208,14 +208,14 @@ mkdir -p /data/work /data/home
 
 # Work .envrc
 cat > /data/work/.envrc << 'EOF'
-export CONTEXT="work"
+export ZONE="work"
 export GHQ_ROOT="$PWD/repos"
 export SDP_TICKETS_DIR="$PWD/tickets"
 EOF
 
 # Home .envrc
 cat > /data/home/.envrc << 'EOF'
-export CONTEXT="home"
+export ZONE="home"
 export GHQ_ROOT="$PWD/repos"
 EOF
 
@@ -228,7 +228,7 @@ direnv allow /data/home
 
 ```bash
 # In /data/work/.envrc
-export CONTEXT="work"
+export ZONE="work"
 export MY_SKILL_CONFIG="/data/work/.myskill.json"
 export MY_SKILL_MODE="professional"
 ```
@@ -251,7 +251,7 @@ MyContextSkill/
 **Example 1: Context-aware email skill**
 ```
 User: "Send an email to John"
-→ Checks CONTEXT env var
+→ Checks ZONE env var
 → If work: Uses Outlook, formal tone
 → If home: Uses Gmail, casual tone
 ```
@@ -268,7 +268,7 @@ User: cd ~/work/tickets/SDP-12345 && claude
 **Example 3: Hybrid detection**
 ```
 User: "Start project work"
-→ Skill checks CONTEXT env var (work)
+→ Skill checks ZONE env var (work)
 → Skill checks for .project.json in cwd
 → Combines environment + file context
 → Tailors response to both signals

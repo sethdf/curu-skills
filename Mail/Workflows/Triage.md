@@ -6,12 +6,12 @@ Email triage based on current context.
 
 1. **Detect context**
    ```bash
-   echo "Context: ${CONTEXT:-not set}"
+   echo "Context: ${ZONE:-not set}"
    ```
 
 2. **Route to backend**
 
-   ### If CONTEXT=work (MS365)
+   ### If ZONE=work (MS365)
    ```bash
    source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh
    auth-keeper ms365 "
@@ -27,7 +27,7 @@ Email triage based on current context.
    "
    ```
 
-   ### If CONTEXT=home (Gmail)
+   ### If ZONE=home (Gmail)
    ```bash
    source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh
    auth-keeper google mail

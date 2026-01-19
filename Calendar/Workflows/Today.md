@@ -6,12 +6,12 @@ Show today's calendar events based on current context.
 
 1. **Detect context**
    ```bash
-   echo "Context: ${CONTEXT:-not set}"
+   echo "Context: ${ZONE:-not set}"
    ```
 
 2. **Route to backend**
 
-   ### If CONTEXT=work (MS365)
+   ### If ZONE=work (MS365)
    ```bash
    source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh
    auth-keeper ms365 "
@@ -29,7 +29,7 @@ Show today's calendar events based on current context.
    "
    ```
 
-   ### If CONTEXT=home (Google Calendar)
+   ### If ZONE=home (Google Calendar)
    ```bash
    source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh
    echo "Today's Schedule (Home):"
