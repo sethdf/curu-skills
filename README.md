@@ -1,10 +1,10 @@
 # Curu Skills
 
-Custom Claude Code skills for email, calendar, messaging, and productivity integrations.
+Custom Claude Code skills for communications, productivity, and work integrations.
 
 ## Overview
 
-This repository contains self-contained skills that extend Claude Code with external service integrations. Each skill follows a consistent structure with SKILL.md documentation, TypeScript CLI tools, and markdown workflows.
+This repository contains self-contained skills that extend Claude Code with external service integrations. Each skill follows PAI (Personal AI Infrastructure) structure with SKILL.md documentation, TypeScript CLI tools, and markdown workflows.
 
 **Repository:** `github.com/sethdf/curu-skills`
 **Location:** `~/.claude/skills/` (symlinked from this repo)
@@ -12,216 +12,126 @@ This repository contains self-contained skills that extend Claude Code with exte
 
 ## Skills
 
-| Skill | Invoke | Purpose | Auth |
-|-------|--------|---------|------|
-| [Gmail](#gmail) | `/gmail` | Gmail email via API | OAuth 2.0 (Google) |
-| [Outlook](#outlook) | `/outlook` | M365 email via Graph API | OAuth 2.0 (Azure AD) |
-| [GoogleCalendar](#googlecalendar) | `/gcal` | Google Calendar management | Shared with Gmail |
-| [OutlookCalendar](#outlookcalendar) | `/ocal` | M365 Calendar + Teams | Shared with Outlook |
-| [Slack](#slack) | `/slack` | Slack workspace messaging | Bot token |
-| [Telegram](#telegram) | `/telegram` | Telegram personal messaging | Bot token |
-| [MailReview](#mailreview) | - | AI email triage review | External project |
-| [ContextPatterns](#contextpatterns) | - | Context-aware skill patterns | Reference only |
+| Skill | Invoke | Purpose | Zone-Aware |
+|-------|--------|---------|------------|
+| [Calendar](#calendar) | `/calendar` | Calendar management (MS365 or Google) | Yes |
+| [Mail](#mail) | `/mail` | Email management (MS365 or Gmail) | Yes |
+| [SDP](#sdp) | `/sdp` | ServiceDesk Plus ticket management | No (work only) |
+| [Slack](#slack) | `/slack` | Slack workspace messaging | No |
+| [Telegram](#telegram) | `/telegram` | Telegram personal messaging | No |
+| [Signal](#signal) | `/signal` | Signal secure messaging | No |
+| [YouTubeWisdom](#youtubewisdom) | `/yt-wisdom` | Extract insights from YouTube videos | No |
+| [MailReview](#mailreview) | - | AI email triage review | No |
+| [ContextPatterns](#contextpatterns) | - | Context-aware skill patterns | Reference |
 
 ## Installation
 
 ```bash
 # Clone to your preferred location
-git clone git@github.com:sethdf/curu-skills.git ~/current/claude-skills
+git clone git@github.com:sethdf/curu-skills.git ~/repos/github.com/sethdf/curu-skills
 
 # Symlink each skill into Claude's skills directory
-for skill in Gmail Outlook GoogleCalendar OutlookCalendar Slack Telegram MailReview ContextPatterns; do
-  ln -sf ~/current/claude-skills/$skill ~/.claude/skills/$skill
+for skill in Calendar Mail SDP Slack Telegram Signal YouTubeWisdom MailReview ContextPatterns; do
+  ln -sf ~/repos/github.com/sethdf/curu-skills/$skill ~/.claude/skills/$skill
 done
 ```
 
-## Skill Structure
+## Zone-Aware Routing
 
-Each skill follows this structure:
+Several skills use `$ZONE` environment variable (set by direnv) to route to the appropriate backend:
 
-```
-SkillName/
-├── SKILL.md              # Main documentation (required)
-├── Tools/                # TypeScript CLI tools
-│   └── ClientName.ts     # Bun-based client
-└── Workflows/            # Step-by-step workflows
-    ├── Setup.md          # Initial configuration
-    └── *.md              # Other workflows
-```
+| Zone | Calendar | Mail |
+|------|----------|------|
+| `work` | MS365 (Graph API) | Outlook (Graph API) |
+| `home` | Google Calendar | Gmail |
+
+Zone is automatically set when you `cd` into `/data/work/` or `/data/home/` directories.
 
 ---
 
-## Gmail
+## Calendar
 
-**Invoke:** `/gmail`
-**Purpose:** Full Gmail API integration for email management
+**Invoke:** `/calendar`
+**Purpose:** Zone-aware calendar management
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `auth` | Authenticate via OAuth (opens browser) |
-| `unread [count]` | List unread messages |
-| `search <query>` | Search with Gmail query syntax |
-| `read <id>` | Read full message content |
-| `reply <id>` | Draft a reply |
-| `send` | Compose and send message |
-| `labels` | List all labels |
-| `label <id> <label>` | Apply label to message |
-| `archive <id>` | Archive message |
-| `trash <id>` | Move to trash |
-
-### Authentication
-
-```bash
-# 1. Create OAuth credentials in Google Cloud Console
-# 2. Download credentials.json to ~/.config/gmail-cli/
-# 3. Run auth command
-bun run ~/.claude/skills/Gmail/Tools/GmailClient.ts auth
-```
-
-**Token Storage:** `~/.config/gmail-cli/`
-**Scopes:** `gmail.readonly`, `gmail.send`, `gmail.modify`, `gmail.labels`
-
----
-
-## Outlook
-
-**Invoke:** `/outlook`
-**Purpose:** Microsoft 365 email via Graph API
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `auth` | Authenticate via device code flow |
-| `unread [max]` | List unread messages |
-| `search <query>` | Search with OData filter or KQL |
-| `read <id>` | Read full message |
-| `reply <id>` | Start reply (body from stdin) |
-| `send <to> <subject>` | Send message (body from stdin) |
-| `folders` | List mail folders |
-| `move <id> <folder>` | Move to folder |
-| `archive <id>` | Archive message |
-| `delete <id>` | Move to deleted items |
-
-### Authentication
-
-```bash
-# 1. Register app in Azure AD portal
-# 2. Set environment variables or create credentials file
-export MS_CLIENT_ID="your-client-id"
-export MS_TENANT_ID="your-tenant-id"
-
-# 3. Run auth command
-bun run ~/.claude/skills/Outlook/Tools/OutlookClient.ts auth
-```
-
-**Token Storage:** `~/.config/outlook-cli/`
-**Permissions:** `Mail.Read`, `Mail.Send`, `Mail.ReadWrite`, `User.Read`
-
----
-
-## GoogleCalendar
-
-**Invoke:** `/gcal`
-**Purpose:** Google Calendar management with natural language date support
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `auth` | Re-authenticate with calendar scopes |
 | `today` | Show today's events |
+| `tomorrow` | Show tomorrow's events |
 | `week` | Show this week's events |
-| `range <start> <end>` | Events in date range |
-| `search <query>` | Search events by text |
-| `free [days]` | Find free time slots |
-| `create <title> <start> <duration> [location]` | Create event |
-| `update <id> <field> <value>` | Update event |
-| `delete <id>` | Delete event |
-| `calendars` | List available calendars |
+| `search <query>` | Search events |
+| `create <title> <time>` | Create event |
 
-### Authentication
+### Backend Routing
 
-Shares OAuth with Gmail. After Gmail auth, add calendar scopes:
-
-```bash
-bun run ~/.claude/skills/GoogleCalendar/Tools/GCalClient.ts auth
-```
-
-**Additional Scopes:** `calendar.readonly`, `calendar.events`
-**Config (optional):** `~/.config/gcal-cli/config.json`
+- `$ZONE=work` → MS365 via `auth-keeper ms365`
+- `$ZONE=home` → Google Calendar via `auth-keeper google calendar`
 
 ---
 
-## OutlookCalendar
+## Mail
 
-**Invoke:** `/ocal`
-**Purpose:** M365 Calendar with Teams meeting support
+**Invoke:** `/mail`
+**Purpose:** Zone-aware email management
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `auth` | Re-authenticate with calendar scopes |
-| `today` / `week` | Show events |
-| `range <start> <end>` | Events in date range |
-| `search <query>` | Search by subject |
-| `free [days]` | Find free slots |
-| `availability <email> [days]` | Check someone's availability |
-| `create <title> <start> <duration> [attendees]` | Create event |
-| `teams <title> <start> <duration> [attendees]` | Create Teams meeting |
-| `update <id> <field> <value>` | Update event |
-| `delete <id>` | Delete/cancel event |
-| `accept/decline/tentative <id>` | Respond to invites |
-| `calendars` | List calendars |
+| (default) | Show recent inbox |
+| `unread` | Show unread messages |
+| `search <query>` | Search emails |
+| `send <to> <subject> <body>` | Send email |
 
-### Authentication
+### Backend Routing
 
-Shares OAuth with Outlook email. After Outlook auth, add calendar scopes:
+- `$ZONE=work` → MS365 Outlook via `auth-keeper ms365`
+- `$ZONE=home` → Gmail via `auth-keeper google mail`
 
-```bash
-bun run ~/.claude/skills/OutlookCalendar/Tools/OCalClient.ts auth
-```
+---
 
-**Additional Permissions:** `Calendars.Read`, `Calendars.ReadWrite`, `OnlineMeetings.ReadWrite`
-**Config (optional):** `~/.config/ocal-cli/config.json`
+## SDP
+
+**Invoke:** `/sdp`
+**Purpose:** ServiceDesk Plus ticket management
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| (default) | Show my assigned tickets |
+| `overdue` | List overdue tickets |
+| `suggest` | Recommend next ticket to work on |
+| `note <id> <text>` | Add internal note to ticket |
+| `reply <id> <text>` | Send reply to requester |
+
+### Configuration
+
+- **Default technician:** `sfoley@buxtonco.com`
+- **API key:** BWS `sdp-api-key`
+- **Base URL:** BWS `sdp-base-url`
 
 ---
 
 ## Slack
 
 **Invoke:** `/slack`
-**Purpose:** Slack workspace integration
+**Purpose:** Slack workspace messaging
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `auth` | Test authentication |
 | `channels` | List channels |
 | `read <channel> [n]` | Read last n messages |
 | `send <channel> <msg>` | Send to channel |
 | `dm <user> <msg>` | Direct message |
-| `thread <channel> <ts> <msg>` | Reply in thread |
-| `search <query>` | Search messages |
-| `users` | List workspace users |
-| `status [text] [emoji]` | Get/set status |
-| `react <channel> <ts> <emoji>` | Add reaction |
 
 ### Authentication
 
-```bash
-# 1. Create Slack app at api.slack.com/apps
-# 2. Add bot token scopes
-# 3. Install to workspace
-# 4. Set bot token
-export SLACK_BOT_TOKEN="xoxb-..."
-```
-
-**Token Storage:** `~/.config/slack-cli/`
-**Bot Scopes:** `channels:read`, `channels:history`, `chat:write`, `users:read`, `im:read`, `im:write`
+Uses `auth-keeper slack`. Token stored in BWS as `slack-bot-token`.
 
 ---
 
@@ -234,50 +144,53 @@ export SLACK_BOT_TOKEN="xoxb-..."
 
 | Command | Description |
 |---------|-------------|
-| `auth` | Test bot token |
-| `updates [count]` | Get recent messages to bot |
-| `chats` | List known chats |
+| `updates` | Get recent messages |
 | `send <chat_id> <msg>` | Send message |
-| `reply <chat_id> <msg_id> <text>` | Reply to message |
-| `forward <from> <to> <msg_id>` | Forward message |
-| `photo <chat_id> <path> [caption]` | Send photo |
-| `file <chat_id> <path> [caption]` | Send file |
-| `delete <chat_id> <msg_id>` | Delete message |
-| `me` | Get bot info |
+| `photo <chat_id> <path>` | Send photo |
 
 ### Authentication
 
-```bash
-# 1. Create bot via @BotFather on Telegram
-# 2. Set bot token
-export TELEGRAM_BOT_TOKEN="123456:ABC..."
+Uses `auth-keeper telegram`. Bot token in BWS as `telegram-bot-token`.
 
-# 3. Optional: set default chat
-export TELEGRAM_CHAT_ID="your-chat-id"
-```
+---
 
-**Token Storage:** `~/.config/telegram-cli/`
-**Chat Aliases:** `~/.config/telegram-cli/chats.json`
+## Signal
+
+**Invoke:** `/signal`
+**Purpose:** Signal secure messaging via signal-cli
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| (default) | Show recent messages |
+| `send <number> <msg>` | Send message |
+| `receive` | Receive pending messages |
+
+### Authentication
+
+Uses `signal-cli` with linked device. See `signal-interface.sh`.
+
+---
+
+## YouTubeWisdom
+
+**Invoke:** `/yt-wisdom`
+**Purpose:** Extract insights from YouTube videos using Apify + fabric
+
+### Features
+
+- Transcribe YouTube videos
+- Extract key insights and wisdom
+- Save to MEMORY for later reference
 
 ---
 
 ## MailReview
 
-**Purpose:** AI-assisted email triage review for mail processing project
+**Purpose:** AI-assisted email triage review
 
-Not directly invocable. Integrates with external mail processor at `/home/sfoley/current/mail`.
-
-### Workflows
-
-- **Review** - Interactive approval/rejection of email classifications
-- **Status** - Check mail processing system status
-
-### Configuration
-
-```bash
-export HIMALAYA_BIN=~/.local/bin/himalaya
-export MAIL_PROJECT=/home/sfoley/current/mail
-```
+Not directly invocable. Integrates with external mail processing project.
 
 ---
 
@@ -285,56 +198,27 @@ export MAIL_PROJECT=/home/sfoley/current/mail
 
 **Purpose:** Reference patterns for building context-aware skills
 
-Not directly invocable. Used by `/CreateSkill` as a reference for adding context awareness to skills.
+Not directly invocable. Used by CreateSkill for adding zone awareness to skills.
 
 ### Context Detection Methods
 
 1. **Environment Variables** - Check `$ZONE` (set by direnv)
-2. **Directory Detection** - Check current working directory patterns
-3. **SessionStart Hooks** - Auto-inject context on Claude session start
-4. **Marker Files** - Look for `.ticket.json`, `.project.json`, etc.
-
-### Standard Context Variables
-
-| Variable | Source | Values | Purpose |
-|----------|--------|--------|---------|
-| `ZONE` | `.envrc` | `work`, `home` | Primary zone |
-| `GHQ_ROOT` | `.envrc` | Path | Repository root |
-| `SDP_TICKETS_DIR` | `.envrc` | Path | Ticket workspace |
-
-See `ContextPatterns/SKILL.md` for full documentation and templates.
+2. **Directory Detection** - Check current working directory
+3. **SessionStart Hooks** - Auto-inject context
+4. **Marker Files** - `.ticket.json`, `.project.json`
 
 ---
 
-## Common Patterns
+## Packs
 
-### Configuration Directory Structure
+Skills are organized into packs for easier installation:
 
-All skills use `~/.config/<service>-cli/`:
+| Pack | Skills | Purpose |
+|------|--------|---------|
+| `comms-pack` | Calendar, Mail, Slack, Telegram, Signal | Communications |
+| `auth-pack` | auth-keeper, asudo, bws-init | Authentication |
 
-```
-~/.config/gmail-cli/
-├── credentials.json    # OAuth client config
-└── token.json          # Access/refresh tokens
-
-~/.config/outlook-cli/
-├── credentials.json    # Azure AD app config
-└── token.json          # Access/refresh tokens
-```
-
-### Environment Variable Precedence
-
-1. Environment variables checked first
-2. Falls back to config files if not set
-3. Allows flexible deployment (dev vs prod)
-
-### Running Tools Directly
-
-```bash
-# All tools are Bun TypeScript files
-bun run ~/.claude/skills/Gmail/Tools/GmailClient.ts <command>
-bun run ~/.claude/skills/Slack/Tools/SlackClient.ts <command>
-```
+See `packs/` directory for installation instructions.
 
 ---
 
@@ -347,27 +231,6 @@ Use the PAI CreateSkill framework:
 ```
 
 For context-aware skills, reference `ContextPatterns/SKILL.md`.
-
----
-
-## Sync & Development
-
-Skills are symlinked from this repo to `~/.claude/skills/`. Edits in either location affect the same files.
-
-### Auto-sync to Git
-
-Use `curu-watch` daemon to auto-commit/push changes:
-
-```bash
-curu-watch    # Run in tmux for background sync
-```
-
-### Manual Sync
-
-```bash
-curu-sync     # Copy ~/.claude/skills → repo
-curu-commit   # Sync + commit with message
-```
 
 ---
 
