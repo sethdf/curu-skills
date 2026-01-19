@@ -1,0 +1,45 @@
+[Unit]
+Description=SimpleX Bridge - Mobile AI Interface
+Documentation=https://github.com/sethdf/curu-packs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+
+# Environment
+Environment=HOME=/home/ubuntu
+Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/bin:/usr/local/bin:/usr/bin:/bin
+Environment=SIMPLEX_CLI=/home/ubuntu/.local/bin/simplex-chat
+Environment=SIMPLEX_BRIDGE_CONFIG=/home/ubuntu/.config/simplex-bridge/config.yaml
+Environment=SIMPLEX_BRIDGE_LOG_DIR=/home/ubuntu/inbox/simplex
+
+# Working directory
+WorkingDirectory=/home/ubuntu
+
+# Command
+ExecStart=/home/ubuntu/bin/simplex-bridge.sh listen
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/inbox/simplex /home/ubuntu/.config/simplex-bridge /home/ubuntu/.local/share/simplex-chat
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=simplex-bridge
+
+[Install]
+WantedBy=multi-user.target

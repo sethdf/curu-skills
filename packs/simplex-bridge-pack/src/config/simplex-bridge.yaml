@@ -1,0 +1,80 @@
+# SimpleX Bridge Configuration
+# Routes messages from SimpleX to appropriate Claude Code contexts
+
+# Context roots - directories that define work vs home context
+contexts:
+  work:
+    roots:
+      - ~/repos/work/
+      - ~/work/
+      - ~/repos/github.com/*/work-*
+    calendar: ms365
+    mail: ms365
+    hours:
+      start: 9
+      end: 18
+      days: [Mon, Tue, Wed, Thu, Fri]
+
+  home:
+    roots:
+      - ~/repos/personal/
+      - ~/projects/
+      - ~/repos/github.com/sethdf/
+    calendar: google
+    mail: gmail
+
+# Skill mappings - how to detect and route skill invocations
+skills:
+  calendar:
+    triggers:
+      - /calendar
+      - "calendar"
+      - "schedule"
+      - "meeting"
+      - "appointments"
+
+  mail:
+    triggers:
+      - /mail
+      - "email"
+      - "inbox"
+      - "messages"
+
+  slack:
+    triggers:
+      - /slack
+      - "slack"
+      - "channel"
+
+  telegram:
+    triggers:
+      - /telegram
+      - "telegram"
+      - "tg"
+
+  signal:
+    triggers:
+      - /signal
+      - "signal"
+
+  comms:
+    triggers:
+      - /comms
+      - "communications"
+      - "triage"
+
+# Logging configuration
+logging:
+  directory: ~/inbox/simplex
+  format: markdown
+  retention_days: 30
+
+# Response configuration
+response:
+  max_length: 4000  # Characters before truncation
+  timeout: 120      # Seconds before timeout
+
+# Model configuration
+models:
+  router: claude-3-5-haiku-latest  # Fast model for routing decisions
+  executor: default                 # Use default claude model for execution
