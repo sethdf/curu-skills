@@ -70,8 +70,8 @@ Comms delegates to context-aware skills:
 
 | Platform | Skill | Backend |
 |----------|-------|---------|
-| Email | Mail | auth-keeper (MS365 or Gmail based on CONTEXT) |
-| Calendar | Calendar | auth-keeper (MS365 or Google based on CONTEXT) |
+| Email | Mail | auth-keeper (MS365 or Gmail based on ZONE) |
+| Calendar | Calendar | auth-keeper (MS365 or Google based on ZONE) |
 | Slack | Slack | Slack API |
 | Telegram | Telegram | Telegram Bot API |
 | Signal | signal-interface | signal-cli |

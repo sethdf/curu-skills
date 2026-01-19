@@ -77,7 +77,7 @@ Add context documentation:
 This skill is context-aware:
 
 ### Environment
-- Checks `CONTEXT` env var for work/home mode
+- Checks `ZONE` env var for work/home mode
 
 ### Directory Detection
 - Activates when in `~/work/myskill/` directories

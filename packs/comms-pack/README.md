@@ -126,7 +126,7 @@ Unified inbox aggregation:
 Context is determined by:
 
 1. **Explicit flag**: `--context work` or `--context home`
-2. **Environment variable**: `$PAI_CONTEXT`
+2. **Environment variable**: `$ZONE`
 3. **Time-based inference**: Work hours → work, evenings/weekends → home
 4. **Working directory**: Repos under work/ → work context
 
@@ -155,7 +155,7 @@ Context is determined by:
 
 | Variable | Purpose |
 |----------|---------|
-| `PAI_CONTEXT` | Force context (work/home) |
+| `ZONE` | Set zone (work/home) |
 | `WORK_CALENDAR_ID` | MS365 calendar ID |
 | `HOME_CALENDAR_ID` | Google calendar ID |
 | `SLACK_WORKSPACE` | Default Slack workspace |

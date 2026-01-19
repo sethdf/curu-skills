@@ -24,7 +24,7 @@ Patterns and templates for building context-aware skills that respond to environ
 
 ### 1. Environment Variable Detection
 
-Use the `CONTEXT` environment variable set by direnv:
+Use the `ZONE` environment variable set by direnv:
 
 ```typescript
 // TypeScript
