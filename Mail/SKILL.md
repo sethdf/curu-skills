@@ -1,6 +1,6 @@
 ---
 name: Mail
-description: Context-aware email management via auth-keeper. USE WHEN checking email OR sending email OR searching mail OR inbox triage OR reading messages. Routes to MS365 (work) or Gmail (home) based on CONTEXT.
+description: Zone-aware email management via auth-keeper. USE WHEN checking email OR sending email OR searching mail OR inbox triage OR reading messages. Routes to MS365 (work) or Gmail (home) based on ZONE.
 ---
 
 ## Customization
@@ -12,22 +12,22 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 # Mail
 
-Context-aware email skill using auth-keeper backend. Automatically routes to MS365 (work context) or Gmail (home context).
+Zone-aware email skill using auth-keeper backend. Automatically routes to MS365 (work zone) or Gmail (home zone).
 
-## Context Routing
+## Zone Routing
 
-| Context | Backend | Command |
+| Zone | Backend | Command |
 |---------|---------|---------|
 | `work` | MS365 Graph API (PowerShell) | `auth-keeper ms365 "Get-MgUserMessage..."` |
 | `home` | Gmail API (curl) | `auth-keeper google mail` |
 
-**Detection:** Uses `$CONTEXT` environment variable set by direnv.
+**Detection:** Uses `$ZONE` environment variable set by direnv.
 
 ## Quick Reference
 
 ```bash
-# Check context
-echo $CONTEXT
+# Check zone
+echo $ZONE
 
 # Work context (MS365)
 auth-keeper ms365 "Get-MgUserMessage -UserId 'sfoley@buxtonco.com' -Top 10"
@@ -50,7 +50,7 @@ auth-keeper google mail
 **Example 1: Morning triage**
 ```
 User: "Check my email"
-→ Detects CONTEXT (work or home)
+→ Detects ZONE (work or home)
 → If work: runs auth-keeper ms365 to list unread
 → If home: runs auth-keeper google mail
 → Shows unread count and recent messages
@@ -59,7 +59,7 @@ User: "Check my email"
 **Example 2: Search for specific emails**
 ```
 User: "Find emails from alice about the project"
-→ Detects CONTEXT
+→ Detects ZONE
 → If work: Get-MgUserMessage -Filter "contains(from/emailAddress/address, 'alice')"
 → If home: auth-keeper google mail with search query
 → Returns matching messages
@@ -68,7 +68,7 @@ User: "Find emails from alice about the project"
 **Example 3: Bulk triage**
 ```
 User: "How many unread emails do I have?"
-→ Detects CONTEXT
+→ Detects ZONE
 → If work: Get-MgUserMessage -Filter 'isRead eq false' -CountVariable c
 → If home: Gmail API unread count
 → Returns: "You have X unread emails"
@@ -76,7 +76,7 @@ User: "How many unread emails do I have?"
 
 ## MS365 PowerShell Commands
 
-Common commands for work context:
+Common commands for work zone:
 
 ```powershell
 # List messages
@@ -97,7 +97,7 @@ Move-MgUserMessage -UserId 'sfoley@buxtonco.com' -MessageId $id -DestinationId $
 
 ## Gmail Commands
 
-Commands for home context:
+Commands for home zone:
 
 ```bash
 # List unread
@@ -113,6 +113,6 @@ curl -s "https://www.googleapis.com/gmail/v1/users/me/messages?q=is:unread" \
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `CONTEXT not set` | Not in work/home directory | `cd` to context directory or `export CONTEXT=work` |
+| `ZONE not set` | Not in work/home directory | `cd` to zone directory or `export ZONE=work` |
 | `BWS not available` | Bitwarden Secrets not initialized | Run `bws login` |
 | `Token expired` | Google OAuth expired | Run `auth-keeper google --auth` |
