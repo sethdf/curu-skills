@@ -7,7 +7,7 @@ Run these commands to verify installation:
 ### 1. Check skills exist
 
 ```bash
-for skill in Calendar Mail Slack Telegram Signal Comms; do
+for skill in Calendar Mail Slack Telegram Signal; do
   if [ -f ~/.claude/skills/$skill/SKILL.md ]; then
     echo "✓ $skill skill installed"
   else
@@ -71,15 +71,7 @@ Expected: Shows recent Telegram messages or confirmation of bot status
 
 Expected: Shows recent Signal messages or inbox status
 
-### 6. Test Comms aggregation
-
-```
-/comms
-```
-
-Expected: Shows unified view across multiple platforms
-
-## Context Routing Verification
+## Zone Routing Verification
 
 ### Test work context
 
@@ -124,11 +116,11 @@ Expected: Returns Google Calendar events
 
 ## Success Criteria
 
-- [ ] All 6 skills installed (Calendar, Mail, Slack, Telegram, Signal, Comms)
+- [ ] All 5 skills installed (Calendar, Mail, Slack, Telegram, Signal)
 - [ ] All helper scripts installed and executable
 - [ ] `/calendar` returns events
 - [ ] `/mail` returns inbox
 - [ ] `/slack` connects to workspace
 - [ ] `/telegram` shows bot status
 - [ ] `/signal` shows inbox
-- [ ] Context routing works (work vs home)
+- [ ] Zone routing works (work vs home)

@@ -3,7 +3,7 @@ name: Communications Pack
 pack-id: sethdf-comms-pack-v1.0.0
 version: 1.0.0
 author: sethdf
-description: Unified communications skills for Claude Code - Calendar, Mail, Slack, Telegram, Signal with context-aware routing (work vs home)
+description: Unified communications skills for Claude Code - Calendar, Mail, Slack, Telegram, Signal with zone-aware routing (work vs home)
 type: communications
 purpose-type: [communications, productivity, integration]
 platform: claude-code
@@ -23,11 +23,11 @@ keywords: [calendar, mail, email, slack, telegram, signal, communications, messa
 
 | Component | Count | Purpose |
 |-----------|-------|---------|
-| Skills | 6 | Calendar, Mail, Slack, Telegram, Signal, Comms |
+| Skills | 5 | Calendar, Mail, Slack, Telegram, Signal |
 | Scripts | 3 | Signal interface, inbox helpers |
 
 **Summary:**
-- **Skills registered:** 6
+- **Skills registered:** 5
 - **Scripts:** 3
 - **Dependencies:** auth-pack (for token management)
 
@@ -44,10 +44,9 @@ Communications are fragmented across multiple platforms:
 
 Comms Pack provides:
 
-1. **Context-Aware Routing**: Work context → MS365, Home context → Google
+1. **Zone-Aware Routing**: Work zone → MS365, Home zone → Google
 2. **Unified Skills**: Single `/calendar`, `/mail` commands that route correctly
 3. **Multi-Platform Messaging**: Slack, Telegram, Signal from Claude Code
-4. **Aggregated Inbox**: `/comms` for unified inbox triage
 
 ## Installation
 
@@ -111,24 +110,13 @@ See [VERIFY.md](VERIFY.md) for testing and verification procedures.
 /signal send +1234567890 "message"  # Send to number
 ```
 
-### Comms (`/comms`)
+## Zone Detection
 
-Unified inbox aggregation:
+Zone is determined by:
 
-```
-/comms                   # Check all platforms
-/comms triage            # AI-assisted triage
-/comms priority          # High priority items only
-```
-
-## Context Detection
-
-Context is determined by:
-
-1. **Explicit flag**: `--context work` or `--context home`
+1. **Explicit flag**: `--zone work` or `--zone home`
 2. **Environment variable**: `$ZONE`
-3. **Time-based inference**: Work hours → work, evenings/weekends → home
-4. **Working directory**: Repos under work/ → work context
+3. **Working directory**: Under /data/work/ → work zone, /data/home/ → home zone
 
 ## Architecture
 
@@ -139,7 +127,7 @@ Context is determined by:
         |
         v
 +-----------------+
-| Context Router  |  <-- Determines work vs home
+| Zone Router     |  <-- Determines work vs home
 +-----------------+
         |
    work │ home
@@ -174,5 +162,5 @@ Context is determined by:
 - Initial release
 - Extracted from curu-skills repository
 - PAI-compliant pack structure
-- 6 communication skills
-- Context-aware routing
+- 5 communication skills
+- Zone-aware routing
