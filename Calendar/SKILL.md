@@ -1,12 +1,14 @@
 ---
 name: Calendar
 description: Context-aware calendar management via auth-keeper. USE WHEN checking calendar OR scheduling meetings OR finding free time OR viewing schedule. Routes to MS365 (work) or Google Calendar (home) based on CONTEXT.
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
 ---
+
+## Customization
+
+**Before executing, check for user customizations at:**
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/Calendar/`
+
+If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
 # Calendar
 
