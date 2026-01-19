@@ -24,6 +24,14 @@ CLI-first ServiceDesk Plus ticket management. Token-efficient - loads only when 
 /sdp reply 12345 "response"  # Reply to ticket
 ```
 
+## Zone Awareness
+
+**SDP is a work-only tool.** The auth-keeper backend will warn if `$ZONE != work`.
+
+To ensure proper zone context:
+- Work from `/data/work/` directory (sets `ZONE=work` via direnv)
+- Or set `export ZONE=work` manually
+
 ## Configuration
 
 **Default technician email:** `sfoley@buxtonco.com`

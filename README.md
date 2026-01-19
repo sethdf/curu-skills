@@ -16,7 +16,7 @@ This repository contains self-contained skills that extend Claude Code with exte
 |-------|--------|---------|------------|
 | [Calendar](#calendar) | `/calendar` | Calendar management (MS365 or Google) | Yes |
 | [Mail](#mail) | `/mail` | Email management (MS365 or Gmail) | Yes |
-| [SDP](#sdp) | `/sdp` | ServiceDesk Plus ticket management | No (work only) |
+| [SDP](#sdp) | `/sdp` | ServiceDesk Plus ticket management | Yes (work only) |
 | [Slack](#slack) | `/slack` | Slack workspace messaging | No |
 | [Telegram](#telegram) | `/telegram` | Telegram personal messaging | No |
 | [Signal](#signal) | `/signal` | Signal secure messaging | No |
@@ -46,6 +46,8 @@ Several skills use `$ZONE` environment variable (set by direnv) to route to the 
 | `home` | Google Calendar | Gmail |
 
 Zone is automatically set when you `cd` into `/data/work/` or `/data/home/` directories.
+
+**Work-only tools:** SDP warns if `$ZONE != work` but continues execution.
 
 ---
 
