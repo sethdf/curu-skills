@@ -1143,6 +1143,199 @@ EOF
             esac
             ;;
 
+        sdp|SDP)
+            shift
+            case "${1:-}" in
+                ""|"my"|"assigned")
+                    # List my assigned tickets
+                    local input_data
+                    input_data=$(jq -n --arg email "$_ak_sdp_user" '{
+                        list_info: {
+                            row_count: 50,
+                            sort_field: "due_by_time",
+                            sort_order: "asc",
+                            search_criteria: [
+                                {field: "technician.email_id", condition: "is", value: $email},
+                                {field: "status.name", condition: "is not", values: ["Closed", "Resolved"]}
+                            ]
+                        }
+                    }')
+
+                    local response
+                    response=$(_ak_sdp_api GET "/api/v3/requests" --data-urlencode "input_data=$input_data")
+
+                    if echo "$response" | jq -e '.requests' &>/dev/null; then
+                        local count
+                        count=$(echo "$response" | jq '.requests | length')
+                        echo "My assigned tickets ($count):"
+                        echo ""
+                        echo "$response" | jq -r '.requests[] | "  #\(.id) | \(.subject | .[0:50]) | \(.status.name) | Due: \(.due_by_time // "N/A")"'
+                    else
+                        echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                    fi
+                    ;;
+                "overdue")
+                    local now_ms
+                    now_ms=$(($(date +%s) * 1000))
+
+                    local input_data
+                    input_data=$(jq -n --arg email "$_ak_sdp_user" --argjson now "$now_ms" '{
+                        list_info: {
+                            row_count: 50,
+                            sort_field: "due_by_time",
+                            sort_order: "asc",
+                            search_criteria: [
+                                {field: "technician.email_id", condition: "is", value: $email},
+                                {field: "due_by_time", condition: "less than", value: ($now | tostring)},
+                                {field: "status.name", condition: "is not", values: ["Closed", "Resolved"]}
+                            ]
+                        }
+                    }')
+
+                    local response
+                    response=$(_ak_sdp_api GET "/api/v3/requests" --data-urlencode "input_data=$input_data")
+
+                    if echo "$response" | jq -e '.requests' &>/dev/null; then
+                        local count
+                        count=$(echo "$response" | jq '.requests | length')
+                        if [[ "$count" == "0" ]]; then
+                            echo "No overdue tickets!"
+                        else
+                            echo "Overdue tickets ($count):"
+                            echo ""
+                            echo "$response" | jq -r '.requests[] | "  #\(.id) | \(.subject | .[0:50]) | Due: \(.due_by_time)"'
+                        fi
+                    else
+                        echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                    fi
+                    ;;
+                "note")
+                    local ticket_id="${2:?Usage: auth-keeper sdp note <ticket_id> <message>}"
+                    shift 2
+                    local message="$*"
+
+                    if [[ -z "$message" ]]; then
+                        echo "Usage: auth-keeper sdp note <ticket_id> <message>" >&2
+                        return 1
+                    fi
+
+                    local input_data
+                    input_data=$(jq -n --arg msg "$message" '{
+                        request_note: {
+                            description: $msg,
+                            show_to_requester: false,
+                            notify_technician: false
+                        }
+                    }')
+
+                    local response
+                    response=$(_ak_sdp_api POST "/api/v3/requests/$ticket_id/notes" -d "input_data=$input_data")
+
+                    if echo "$response" | jq -e '.request_note' &>/dev/null; then
+                        local note_id
+                        note_id=$(echo "$response" | jq -r '.request_note.id')
+                        echo "Note added to ticket #$ticket_id"
+                        echo "  Note ID: $note_id"
+                    else
+                        echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                    fi
+                    ;;
+                "reply")
+                    local ticket_id="${2:?Usage: auth-keeper sdp reply <ticket_id> <message>}"
+                    shift 2
+                    local message="$*"
+
+                    if [[ -z "$message" ]]; then
+                        echo "Usage: auth-keeper sdp reply <ticket_id> <message>" >&2
+                        return 1
+                    fi
+
+                    local input_data
+                    input_data=$(jq -n --arg msg "$message" '{
+                        reply: {
+                            description: $msg
+                        }
+                    }')
+
+                    local response
+                    response=$(_ak_sdp_api POST "/api/v3/requests/$ticket_id/reply" -d "input_data=$input_data")
+
+                    if echo "$response" | jq -e '.response_status.status_code' &>/dev/null; then
+                        local status_code
+                        status_code=$(echo "$response" | jq -r '.response_status.status_code')
+                        if [[ "$status_code" == "2000" ]]; then
+                            echo "Reply sent to ticket #$ticket_id"
+                        else
+                            echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                        fi
+                    else
+                        echo "Error: Unexpected response" >&2
+                    fi
+                    ;;
+                "get"|"show")
+                    local ticket_id="${2:?Usage: auth-keeper sdp get <ticket_id>}"
+
+                    local response
+                    response=$(_ak_sdp_api GET "/api/v3/requests/$ticket_id")
+
+                    if echo "$response" | jq -e '.request' &>/dev/null; then
+                        echo "$response" | jq -r '.request | "Ticket #\(.id)\n  Subject: \(.subject)\n  Status: \(.status.name)\n  Priority: \(.priority.name // "N/A")\n  Requester: \(.requester.name) <\(.requester.email_id)>\n  Technician: \(.technician.name // "Unassigned")\n  Due: \(.due_by_time // "N/A")\n  Created: \(.created_time.display_value)\n\nDescription:\n\(.description // "No description")"'
+                    else
+                        echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                    fi
+                    ;;
+                "auth"|"test")
+                    _ak_sdp_get_creds || return 1
+                    echo "SDP Configuration:"
+                    echo "  Base URL: $_ak_sdp_base_url"
+                    echo "  User: $_ak_sdp_user"
+                    echo "  API Key: ${_ak_sdp_api_key:0:8}..."
+                    echo ""
+                    echo "Testing API connection..."
+
+                    local response
+                    response=$(_ak_sdp_api GET "/api/v3/requests" --data-urlencode 'input_data={"list_info":{"row_count":1}}')
+
+                    if echo "$response" | jq -e '.response_status.status_code' &>/dev/null; then
+                        local status_code
+                        status_code=$(echo "$response" | jq -r '.response_status.status_code')
+                        if [[ "$status_code" == "2000" ]]; then
+                            echo "Connection successful!"
+                        else
+                            echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                        fi
+                    else
+                        echo "Connection failed - check credentials" >&2
+                    fi
+                    ;;
+                "-h"|"--help")
+                    cat <<'EOF'
+auth-keeper sdp - ServiceDesk Plus API access
+
+Usage:
+  auth-keeper sdp                    List my assigned tickets
+  auth-keeper sdp overdue            List overdue tickets
+  auth-keeper sdp get <id>           Get ticket details
+  auth-keeper sdp note <id> <msg>    Add internal note
+  auth-keeper sdp reply <id> <msg>   Send reply to requester
+  auth-keeper sdp auth               Test API connection
+  auth-keeper sdp -h                 Show this help
+
+Examples:
+  auth-keeper sdp
+  auth-keeper sdp overdue
+  auth-keeper sdp get 12345
+  auth-keeper sdp note 12345 "Investigated - DNS issue on prod-web-03"
+  auth-keeper sdp reply 12345 "Issue resolved. DNS cache cleared."
+EOF
+                    ;;
+                *)
+                    echo "Unknown sdp command: $1 (try: auth-keeper sdp -h)" >&2
+                    return 1
+                    ;;
+            esac
+            ;;
+
         refresh|r)
             case "${2:-}" in
                 aws|aws-sso)
