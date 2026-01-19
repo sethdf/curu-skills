@@ -30,7 +30,6 @@ ln -sf "$CURU_SKILLS/Mail" ~/.claude/skills/
 ln -sf "$CURU_SKILLS/Slack" ~/.claude/skills/
 ln -sf "$CURU_SKILLS/Telegram" ~/.claude/skills/
 ln -sf "$CURU_SKILLS/Signal" ~/.claude/skills/
-ln -sf "$CURU_SKILLS/Comms" ~/.claude/skills/
 ```
 
 ### Step 2: Copy scripts to bin
@@ -69,7 +68,6 @@ This pack provides the following skills (located in `../../` relative to this pa
 | Slack | `../../Slack/` | Slack messaging |
 | Telegram | `../../Telegram/` | Telegram messaging |
 | Signal | `../../Signal/` | Signal messaging |
-| Comms | `../../Comms/` | Unified communications triage |
 
 ## Service-Specific Setup
 
@@ -117,7 +115,6 @@ rm ~/.claude/skills/Mail
 rm ~/.claude/skills/Slack
 rm ~/.claude/skills/Telegram
 rm ~/.claude/skills/Signal
-rm ~/.claude/skills/Comms
 
 # Remove scripts
 rm ~/bin/signal-*.sh ~/bin/telegram-*.sh
