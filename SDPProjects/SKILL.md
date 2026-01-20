@@ -153,6 +153,23 @@ User: "/sdp-project create 'Q1 Infrastructure Upgrade'"
 -> Returns project ID and details
 ```
 
+## Known Limitations
+
+### API Pagination Not Working
+
+**Issue:** The Projects API returns `has_more_rows: true` with 10 results, but pagination via `input_data` parameters (`row_count`, `start_index`, `page`) does not work. All pagination attempts either:
+- Return empty results (page 2+)
+- Return error code 4013
+- Get ignored (row_count stays at 10)
+
+**Impact:** Only the first 10 projects are accessible via API. Projects beyond this (like PJT-119) are visible in the web UI but not retrievable via API.
+
+**Workaround:** Use the SDP web interface for full project visibility, or contact SDP admin to check API access settings.
+
+### Project Lookup by Display ID
+
+The API requires internal numeric IDs (e.g., `55354000011346143`), not display IDs (e.g., `PJT-119`). Without pagination, projects not in the first 10 results cannot be looked up by their internal ID.
+
 ## Error Handling
 
 | Error | Cause | Solution |
@@ -161,6 +178,7 @@ User: "/sdp-project create 'Q1 Infrastructure Upgrade'"
 | `404 Not Found` | Wrong project ID or URL | Verify project exists, check base URL |
 | `403 Forbidden` | No permission for action | Check technician permissions in SDP |
 | `400 Bad Request` | Malformed query | Validate JSON input_data format |
+| `4013` | Invalid list_info parameters | Use basic GET without input_data |
 
 ## Backend
 
