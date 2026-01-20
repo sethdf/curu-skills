@@ -920,36 +920,57 @@ EOF
                     fi
 
                     echo "Fetching unread counts..."
-                    local response
-                    response=$(_ak_slack_user_api "users.conversations" -d '{"types":"public_channel,private_channel,im,mpim","limit":100,"exclude_archived":true}')
+                    local token has_unread=false
+                    token=$(_ak_slack_get_user_token) || return 1
 
-                    if echo "$response" | jq -e '.ok' &>/dev/null && [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
-                        echo ""
-                        local has_unread=false
+                    # Query each channel type separately (GET params required)
+                    for ch_type in "im" "mpim" "private_channel" "public_channel"; do
+                        local response
+                        response=$(curl -s "https://slack.com/api/conversations.list?types=$ch_type&limit=200&exclude_archived=true" \
+                            -H "Authorization: Bearer $token")
 
-                        # Get unread info for each channel
+                        if [[ $(echo "$response" | jq -r '.ok') != "true" ]]; then
+                            continue
+                        fi
+
+                        # Check each channel for unread messages
                         while IFS= read -r ch_id; do
+                            [[ -z "$ch_id" ]] && continue
                             local info
-                            info=$(_ak_slack_user_api "conversations.info" -d "{\"channel\":\"$ch_id\",\"include_num_members\":false}")
-                            local unread_count name is_private
+                            info=$(curl -s "https://slack.com/api/conversations.info?channel=$ch_id" \
+                                -H "Authorization: Bearer $token")
+
+                            local unread_count name is_im is_private
                             unread_count=$(echo "$info" | jq -r '.channel.unread_count // 0')
-                            name=$(echo "$info" | jq -r '.channel.name // .channel.user // "DM"')
-                            is_private=$(echo "$info" | jq -r '.channel.is_private // false')
+                            [[ "$unread_count" == "null" ]] && unread_count=0
 
                             if [[ "$unread_count" -gt 0 ]]; then
                                 has_unread=true
-                                local prefix="#"
-                                [[ "$is_private" == "true" ]] && prefix="🔒"
-                                [[ "$name" == "DM" || -z "${name//[0-9]/}" ]] && prefix="💬"
-                                printf "  %s%-20s %d unread\n" "$prefix" "$name" "$unread_count"
+                                name=$(echo "$info" | jq -r '.channel.name // empty')
+                                is_im=$(echo "$info" | jq -r '.channel.is_im // false')
+                                is_private=$(echo "$info" | jq -r '.channel.is_private // false')
+
+                                # For DMs, resolve user name
+                                if [[ "$is_im" == "true" ]]; then
+                                    local user_id
+                                    user_id=$(echo "$info" | jq -r '.channel.user')
+                                    local user_info
+                                    user_info=$(curl -s "https://slack.com/api/users.info?user=$user_id" \
+                                        -H "Authorization: Bearer $token")
+                                    name=$(echo "$user_info" | jq -r '.user.real_name // .user.name // "DM"')
+                                    printf "  💬 %-25s %d unread\n" "$name" "$unread_count"
+                                elif [[ "$is_private" == "true" ]]; then
+                                    printf "  🔒 %-25s %d unread\n" "$name" "$unread_count"
+                                else
+                                    printf "  #  %-25s %d unread\n" "$name" "$unread_count"
+                                fi
                             fi
                         done < <(echo "$response" | jq -r '.channels[].id')
+                    done
 
-                        if [[ "$has_unread" == "false" ]]; then
-                            echo "  No unread messages!"
-                        fi
-                    else
-                        echo "Error: $(echo "$response" | jq -r '.error // "Unknown error"')" >&2
+                    if [[ "$has_unread" == "false" ]]; then
+                        echo ""
+                        echo "  No unread messages!"
                     fi
                     ;;
                 "channels"|"ch")
