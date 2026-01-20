@@ -616,7 +616,14 @@ _ak_sdp_ensure_token() {
     _ak_sdp_token="$access_token"
 }
 
+_ak_sdp_creds_loaded=""
+
 _ak_sdp_get_creds() {
+    # Idempotent - only load once per session
+    if [[ -n "$_ak_sdp_creds_loaded" && -n "$_ak_sdp_base_url" ]]; then
+        return 0
+    fi
+
     _ak_sdp_base_url="${SDP_BASE_URL:-$(_ak_bws_get 'sdp-base-url')}"
 
     if [[ -z "$_ak_sdp_base_url" ]]; then
@@ -626,6 +633,7 @@ _ak_sdp_get_creds() {
 
     # Ensure we have a fresh token
     _ak_sdp_ensure_token || return 1
+    _ak_sdp_creds_loaded="1"
 }
 
 _ak_sdp_api() {
