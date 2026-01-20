@@ -1333,14 +1333,23 @@ EOF
                     fi
                     ;;
                 "auth"|"test")
-                    _ak_sdp_get_creds || return 1
-                    echo "SDP Configuration:"
-                    echo "  Base URL: $_ak_sdp_base_url"
+                    echo "SDP Configuration (OAuth 2.0):"
+                    echo "  Base URL: $(_ak_bws_get 'sdp-base-url')"
                     echo "  User: $_ak_sdp_user"
-                    echo "  API Key: ${_ak_sdp_api_key:0:8}..."
+                    echo "  Client ID: $(_ak_bws_get 'sdp-client-id' | head -c 20)..."
+                    echo ""
+                    echo "Fetching access token..."
+                    local token
+                    token=$(_ak_sdp_get_access_token)
+                    if [[ -z "$token" ]]; then
+                        echo "Failed to get access token" >&2
+                        return 1
+                    fi
+                    echo "  Token: ${token:0:20}... (valid ~1hr)"
                     echo ""
                     echo "Testing API connection..."
 
+                    _ak_sdp_get_creds || return 1
                     local response
                     response=$(_ak_sdp_api GET "/api/v3/requests" --data-urlencode 'input_data={"list_info":{"row_count":1}}')
 
@@ -1353,6 +1362,7 @@ EOF
                             echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
                         fi
                     else
+                        echo "API response: $response" >&2
                         echo "Connection failed - check credentials" >&2
                     fi
                     ;;
