@@ -530,17 +530,23 @@ _ak_signal_api_running() {
 # ============================================================================
 
 _ak_sdp_user="sfoley@buxtonco.com"
-_ak_sdp_access_token=""
-_ak_sdp_token_expiry=0
+_ak_sdp_token_cache_file="/tmp/.sdp_token_cache_$$"
 
-_ak_sdp_get_access_token() {
-    local now
+# Ensure token is fresh (call before using _ak_sdp_token)
+_ak_sdp_ensure_token() {
+    local now cached_expiry cached_token
     now=$(date +%s)
 
-    # Return cached token if still valid (with 5 min buffer)
-    if [[ -n "$_ak_sdp_access_token" && "$_ak_sdp_token_expiry" -gt $((now + 300)) ]]; then
-        echo "$_ak_sdp_access_token"
-        return 0
+    # Check cache file
+    if [[ -f "$_ak_sdp_token_cache_file" ]]; then
+        cached_expiry=$(head -1 "$_ak_sdp_token_cache_file" 2>/dev/null || echo "0")
+        cached_token=$(tail -1 "$_ak_sdp_token_cache_file" 2>/dev/null || echo "")
+
+        # Return cached token if still valid (with 5 min buffer)
+        if [[ -n "$cached_token" && "$cached_expiry" -gt $((now + 300)) ]]; then
+            _ak_sdp_token="$cached_token"
+            return 0
+        fi
     fi
 
     # Get OAuth credentials from BWS
@@ -571,11 +577,12 @@ _ak_sdp_get_access_token() {
         return 1
     fi
 
-    # Cache the token
-    _ak_sdp_access_token="$access_token"
-    _ak_sdp_token_expiry=$((now + expires_in))
+    # Cache to file (expiry on line 1, token on line 2)
+    echo "$((now + expires_in))" > "$_ak_sdp_token_cache_file"
+    echo "$access_token" >> "$_ak_sdp_token_cache_file"
+    chmod 600 "$_ak_sdp_token_cache_file"
 
-    echo "$access_token"
+    _ak_sdp_token="$access_token"
 }
 
 _ak_sdp_get_creds() {
@@ -586,8 +593,8 @@ _ak_sdp_get_creds() {
         return 1
     fi
 
-    # Get fresh access token
-    _ak_sdp_token=$(_ak_sdp_get_access_token) || return 1
+    # Ensure we have a fresh token
+    _ak_sdp_ensure_token || return 1
 }
 
 _ak_sdp_api() {
@@ -1339,13 +1346,8 @@ EOF
                     echo "  Client ID: $(_ak_bws_get 'sdp-client-id' | head -c 20)..."
                     echo ""
                     echo "Fetching access token..."
-                    local token
-                    token=$(_ak_sdp_get_access_token)
-                    if [[ -z "$token" ]]; then
-                        echo "Failed to get access token" >&2
-                        return 1
-                    fi
-                    echo "  Token: ${token:0:20}... (valid ~1hr)"
+                    _ak_sdp_ensure_token || return 1
+                    echo "  Token: ${_ak_sdp_token:0:20}... (valid ~1hr)"
                     echo ""
                     echo "Testing API connection..."
 
