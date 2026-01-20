@@ -882,6 +882,47 @@ EOF
                         echo "Error: $(echo "$response" | jq -r '.error // "Unknown error"')" >&2
                     fi
                     ;;
+                "unread"|"u")
+                    # Show unread counts (requires user token)
+                    if ! _ak_slack_user_configured; then
+                        echo "Error: Unread counts require user token (slack-user-token in BWS)" >&2
+                        echo "See: auth-keeper slack -h" >&2
+                        return 1
+                    fi
+
+                    echo "Fetching unread counts..."
+                    local response
+                    response=$(_ak_slack_user_api "users.conversations" -d '{"types":"public_channel,private_channel,im,mpim","limit":100,"exclude_archived":true}')
+
+                    if echo "$response" | jq -e '.ok' &>/dev/null && [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
+                        echo ""
+                        local has_unread=false
+
+                        # Get unread info for each channel
+                        while IFS= read -r ch_id; do
+                            local info
+                            info=$(_ak_slack_user_api "conversations.info" -d "{\"channel\":\"$ch_id\",\"include_num_members\":false}")
+                            local unread_count name is_private
+                            unread_count=$(echo "$info" | jq -r '.channel.unread_count // 0')
+                            name=$(echo "$info" | jq -r '.channel.name // .channel.user // "DM"')
+                            is_private=$(echo "$info" | jq -r '.channel.is_private // false')
+
+                            if [[ "$unread_count" -gt 0 ]]; then
+                                has_unread=true
+                                local prefix="#"
+                                [[ "$is_private" == "true" ]] && prefix="🔒"
+                                [[ "$name" == "DM" || -z "${name//[0-9]/}" ]] && prefix="💬"
+                                printf "  %s%-20s %d unread\n" "$prefix" "$name" "$unread_count"
+                            fi
+                        done < <(echo "$response" | jq -r '.channels[].id')
+
+                        if [[ "$has_unread" == "false" ]]; then
+                            echo "  No unread messages!"
+                        fi
+                    else
+                        echo "Error: $(echo "$response" | jq -r '.error // "Unknown error"')" >&2
+                    fi
+                    ;;
                 "channels"|"ch")
                     local response
                     response=$(_ak_slack_api "conversations.list" -d '{"types":"public_channel,private_channel","limit":100}')
