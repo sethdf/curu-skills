@@ -1020,20 +1020,34 @@ EOF
                     ;;
                 "-h"|"--help")
                     cat <<'EOF'
-auth-keeper slack - Slack API access (Bot token)
+auth-keeper slack - Slack API access
 
 Usage:
   auth-keeper slack                    Show recent activity
   auth-keeper slack channels           List channels
-  auth-keeper slack read <ch> [n]      Read last n messages (default: 20)
+  auth-keeper slack unread             Show unread counts (requires user token)
+  auth-keeper slack read <ch> [n]      Read last n messages (requires user token)
   auth-keeper slack send <ch> <msg>    Send message to channel
   auth-keeper slack auth               Test authentication
   auth-keeper slack -h                 Show this help
 
 Channel formats: #general, general, C0123456789
 
+Token Types:
+  Bot token (slack-bot-token):   Used for send, channels, auth
+  User token (slack-user-token): Required for read, unread
+
+To get a user token:
+  1. Go to api.slack.com/apps → Your app → OAuth & Permissions
+  2. Add User Token Scopes: channels:history, channels:read, groups:history,
+     groups:read, im:history, im:read, mpim:history, mpim:read
+  3. Reinstall app to workspace
+  4. Copy User OAuth Token (xoxp-...)
+  5. Store in BWS: bws secret edit slack-user-token -v "xoxp-..."
+
 Examples:
   auth-keeper slack channels
+  auth-keeper slack unread
   auth-keeper slack read #general 10
   auth-keeper slack send #general "Build complete!"
 EOF
@@ -1569,7 +1583,7 @@ elif [[ -n "${BASH_VERSION:-}" ]]; then
             refresh) mapfile -t COMPREPLY < <(compgen -W "aws azure google all" -- "$cur") ;;
             google) mapfile -t COMPREPLY < <(compgen -W "mail calendar --auth --token --help" -- "$cur") ;;
             ms365) mapfile -t COMPREPLY < <(compgen -W "--interactive --help" -- "$cur") ;;
-            slack) mapfile -t COMPREPLY < <(compgen -W "channels read send auth --help" -- "$cur") ;;
+            slack) mapfile -t COMPREPLY < <(compgen -W "channels unread read send auth --help" -- "$cur") ;;
             telegram) mapfile -t COMPREPLY < <(compgen -W "updates send auth --help" -- "$cur") ;;
             signal) mapfile -t COMPREPLY < <(compgen -W "receive send link auth --help" -- "$cur") ;;
             sdp) mapfile -t COMPREPLY < <(compgen -W "my overdue get note reply auth --help" -- "$cur") ;;
