@@ -1437,9 +1437,9 @@ EOF
                     local response
                     response=$(_ak_sdp_api POST "/api/v3/requests/$ticket_id/reply" -d "input_data=$input_data")
 
-                    if echo "$response" | jq -e '.response_status.status_code' &>/dev/null; then
+                    if echo "$response" | jq -e '.response_status[0].status_code' &>/dev/null; then
                         local status_code
-                        status_code=$(echo "$response" | jq -r '.response_status.status_code')
+                        status_code=$(echo "$response" | jq -r '.response_status[0].status_code')
                         if [[ "$status_code" == "2000" ]]; then
                             echo "Reply sent to ticket #$ticket_id"
                         else
