@@ -1348,7 +1348,7 @@ EOF
                         echo ""
                         echo "$response" | jq -r '.requests[] | "  #\(.id) | \(.subject | .[0:50]) | \(.status.name) | Due: \(.due_by_time // "N/A")"'
                     else
-                        echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                        echo "Error: $(echo "$response" | jq -r '.response_status[0].messages[0].message // "Unknown error"')" >&2
                     fi
                     ;;
                 "overdue")
@@ -1383,7 +1383,7 @@ EOF
                             echo "$response" | jq -r '.requests[] | "  #\(.id) | \(.subject | .[0:50]) | Due: \(.due_by_time)"'
                         fi
                     else
-                        echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                        echo "Error: $(echo "$response" | jq -r '.response_status[0].messages[0].message // "Unknown error"')" >&2
                     fi
                     ;;
                 "note")
@@ -1414,7 +1414,7 @@ EOF
                         echo "Note added to ticket #$ticket_id"
                         echo "  Note ID: $note_id"
                     else
-                        echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                        echo "Error: $(echo "$response" | jq -r '.response_status[0].messages[0].message // "Unknown error"')" >&2
                     fi
                     ;;
                 "reply")
@@ -1443,7 +1443,7 @@ EOF
                         if [[ "$status_code" == "2000" ]]; then
                             echo "Reply sent to ticket #$ticket_id"
                         else
-                            echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                            echo "Error: $(echo "$response" | jq -r '.response_status[0].messages[0].message // "Unknown error"')" >&2
                         fi
                     else
                         echo "Error: Unexpected response" >&2
@@ -1458,7 +1458,7 @@ EOF
                     if echo "$response" | jq -e '.request' &>/dev/null; then
                         echo "$response" | jq -r '.request | "Ticket #\(.id)\n  Subject: \(.subject)\n  Status: \(.status.name)\n  Priority: \(.priority.name // "N/A")\n  Requester: \(.requester.name) <\(.requester.email_id)>\n  Technician: \(.technician.name // "Unassigned")\n  Due: \(.due_by_time // "N/A")\n  Created: \(.created_time.display_value)\n\nDescription:\n\(.description // "No description")"'
                     else
-                        echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                        echo "Error: $(echo "$response" | jq -r '.response_status[0].messages[0].message // "Unknown error"')" >&2
                     fi
                     ;;
                 "auth"|"test")
@@ -1477,13 +1477,16 @@ EOF
                     local response
                     response=$(_ak_sdp_api GET "/api/v3/requests" --data-urlencode 'input_data={"list_info":{"row_count":1}}')
 
-                    if echo "$response" | jq -e '.response_status.status_code' &>/dev/null; then
+                    # response_status is an array in SDP Cloud API
+                    if echo "$response" | jq -e '.response_status[0].status_code' &>/dev/null; then
                         local status_code
-                        status_code=$(echo "$response" | jq -r '.response_status.status_code')
+                        status_code=$(echo "$response" | jq -r '.response_status[0].status_code')
                         if [[ "$status_code" == "2000" ]]; then
-                            echo "Connection successful!"
+                            local count
+                            count=$(echo "$response" | jq -r '.requests | length')
+                            echo "Connection successful! (found $count tickets)"
                         else
-                            echo "Error: $(echo "$response" | jq -r '.response_status.messages[0].message // "Unknown error"')" >&2
+                            echo "Error: $(echo "$response" | jq -r '.response_status[0].messages[0].message // "Unknown error"')" >&2
                         fi
                     else
                         echo "API response: $response" >&2
