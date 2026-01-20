@@ -526,24 +526,68 @@ _ak_signal_api_running() {
 }
 
 # ============================================================================
-# SDP (ServiceDesk Plus) - REST API
+# SDP (ServiceDesk Plus Cloud) - OAuth 2.0 REST API
 # ============================================================================
 
 _ak_sdp_user="sfoley@buxtonco.com"
+_ak_sdp_access_token=""
+_ak_sdp_token_expiry=0
 
-_ak_sdp_get_creds() {
-    _ak_sdp_api_key="${SDP_API_KEY:-$(_ak_bws_get 'sdp-api-key')}"
-    _ak_sdp_base_url="${SDP_BASE_URL:-$(_ak_bws_get 'sdp-base-url')}"
+_ak_sdp_get_access_token() {
+    local now
+    now=$(date +%s)
 
-    if [[ -z "$_ak_sdp_api_key" ]]; then
-        echo "Error: No SDP API key. Set SDP_API_KEY or add sdp-api-key to BWS" >&2
+    # Return cached token if still valid (with 5 min buffer)
+    if [[ -n "$_ak_sdp_access_token" && "$_ak_sdp_token_expiry" -gt $((now + 300)) ]]; then
+        echo "$_ak_sdp_access_token"
+        return 0
+    fi
+
+    # Get OAuth credentials from BWS
+    local client_id client_secret refresh_token
+    client_id="${SDP_CLIENT_ID:-$(_ak_bws_get 'sdp-client-id')}"
+    client_secret="${SDP_CLIENT_SECRET:-$(_ak_bws_get 'sdp-client-secret')}"
+    refresh_token="${SDP_REFRESH_TOKEN:-$(_ak_bws_get 'sdp-refresh-token')}"
+
+    if [[ -z "$client_id" || -z "$client_secret" || -z "$refresh_token" ]]; then
+        echo "Error: Missing SDP OAuth credentials in BWS (sdp-client-id, sdp-client-secret, sdp-refresh-token)" >&2
         return 1
     fi
+
+    # Exchange refresh token for access token
+    local response
+    response=$(curl -s -X POST "https://accounts.zoho.com/oauth/v2/token" \
+        -d "grant_type=refresh_token" \
+        -d "client_id=$client_id" \
+        -d "client_secret=$client_secret" \
+        -d "refresh_token=$refresh_token")
+
+    local access_token expires_in
+    access_token=$(echo "$response" | jq -r '.access_token // empty')
+    expires_in=$(echo "$response" | jq -r '.expires_in // 3600')
+
+    if [[ -z "$access_token" ]]; then
+        echo "Error: Failed to get SDP access token: $(echo "$response" | jq -r '.error // "unknown"')" >&2
+        return 1
+    fi
+
+    # Cache the token
+    _ak_sdp_access_token="$access_token"
+    _ak_sdp_token_expiry=$((now + expires_in))
+
+    echo "$access_token"
+}
+
+_ak_sdp_get_creds() {
+    _ak_sdp_base_url="${SDP_BASE_URL:-$(_ak_bws_get 'sdp-base-url')}"
 
     if [[ -z "$_ak_sdp_base_url" ]]; then
         echo "Error: No SDP base URL. Set SDP_BASE_URL or add sdp-base-url to BWS" >&2
         return 1
     fi
+
+    # Get fresh access token
+    _ak_sdp_token=$(_ak_sdp_get_access_token) || return 1
 }
 
 _ak_sdp_api() {
@@ -554,16 +598,16 @@ _ak_sdp_api() {
     _ak_sdp_get_creds || return 1
 
     curl -s -X "$method" "${_ak_sdp_base_url}${endpoint}" \
-        -H "authtoken: $_ak_sdp_api_key" \
+        -H "Authorization: Zoho-oauthtoken $_ak_sdp_token" \
         -H "Content-Type: application/x-www-form-urlencoded" \
         "$@"
 }
 
 _ak_sdp_configured() {
-    local key url
-    key="${SDP_API_KEY:-$(_ak_bws_get 'sdp-api-key' 2>/dev/null)}"
+    local refresh url
+    refresh="${SDP_REFRESH_TOKEN:-$(_ak_bws_get 'sdp-refresh-token' 2>/dev/null)}"
     url="${SDP_BASE_URL:-$(_ak_bws_get 'sdp-base-url' 2>/dev/null)}"
-    [[ -n "$key" && -n "$url" ]]
+    [[ -n "$refresh" && -n "$url" ]]
 }
 
 # ============================================================================
