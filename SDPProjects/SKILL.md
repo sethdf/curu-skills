@@ -40,6 +40,14 @@ To ensure proper zone context:
 **API credentials in BWS:**
 - `sdp-api-key` - ServiceDesk Plus API key
 - `sdp-base-url` - SDP instance URL (e.g., `https://sdpondemand.manageengine.com`)
+- `sdp-client-id` - OAuth client ID
+- `sdp-client-secret` - OAuth client secret
+- `sdp-refresh-token` - OAuth refresh token
+
+**Required OAuth Scope:** `SDPOnDemand.projects.ALL`
+
+To add this scope, re-authorize at:
+`https://accounts.zoho.com/oauth/v2/auth?scope=SDPOnDemand.projects.ALL&client_id=CLIENT_ID&response_type=code&redirect_uri=REDIRECT_URI&access_type=offline`
 
 ## Workflow Routing
 

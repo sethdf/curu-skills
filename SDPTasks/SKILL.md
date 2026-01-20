@@ -40,6 +40,13 @@ To ensure proper zone context:
 **API credentials in BWS:**
 - `sdp-api-key` - ServiceDesk Plus API key
 - `sdp-base-url` - SDP instance URL (e.g., `https://sdpondemand.manageengine.com`)
+- `sdp-client-id` - OAuth client ID
+- `sdp-client-secret` - OAuth client secret
+- `sdp-refresh-token` - OAuth refresh token
+
+**Required OAuth Scope:** `SDPOnDemand.tasks.ALL`
+
+Note: Tasks may also require `SDPOnDemand.requests.ALL` scope for request-linked tasks.
 
 ## Workflow Routing
 
