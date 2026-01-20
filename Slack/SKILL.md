@@ -21,6 +21,7 @@ CLI-first Slack integration using auth-keeper backend. Token-efficient - loads o
 /slack channels              # List channels
 /slack read #general         # Read recent messages
 /slack send #general "msg"   # Send message
+/slack sync                  # Incremental archive sync (slackdump)
 ```
 
 ## Backend
@@ -52,6 +53,7 @@ auth-keeper slack auth
 |----------|---------|------|
 | **Setup** | "setup slack", "configure slack" | `Workflows/Setup.md` |
 | **Triage** | "/slack", "check slack" | `Workflows/Triage.md` |
+| **Sync** | "sync slack", "archive slack", "backup slack" | `Workflows/Sync.md` |
 
 ## Authentication
 
@@ -108,3 +110,45 @@ User: "/slack read #general 20"
 | `channel_not_found` | Wrong channel name/ID | Use `channels` to list |
 | `not_in_channel` | Bot not in channel | Invite bot to channel |
 | `missing_scope` | Token lacks permission | Add scope in Slack app settings |
+
+## Slackdump Integration
+
+For incremental archiving and backup, this skill uses [slackdump](https://github.com/rusq/slackdump).
+
+### Setup (one-time)
+
+```bash
+# Import user token to slackdump (already configured)
+slackdump workspace list
+
+# Archive location
+$HOME/slack-archive/
+```
+
+### Sync Commands
+
+```bash
+# First run - full archive to SQLite database
+slackdump archive -o ~/slack-archive/
+
+# Subsequent runs - incremental (only new messages)
+slackdump resume ~/slack-archive/
+
+# Query the archive
+sqlite3 ~/slack-archive/slackdump.sqlite "SELECT * FROM MESSAGE ORDER BY ts DESC LIMIT 10;"
+```
+
+### Archive Structure
+
+The archive is a SQLite database with tables:
+- `MESSAGE` - All messages with timestamps
+- `CHANNEL` - Channel metadata
+- `S_USER` - User information
+- `FILE` - File attachments metadata
+
+### Cron Setup (optional)
+
+```bash
+# /etc/cron.d/slack-sync - every 5 minutes
+*/5 * * * * ubuntu slackdump resume ~/slack-archive/ 2>&1 | logger -t slackdump
+```
