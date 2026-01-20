@@ -44,9 +44,9 @@ To ensure proper zone context:
 - `sdp-client-secret` - OAuth client secret
 - `sdp-refresh-token` - OAuth refresh token
 
-**Required OAuth Scope:** `SDPOnDemand.tasks.ALL`
+**Required OAuth Scope:** `SDPOnDemand.general.ALL`
 
-Note: Tasks may also require `SDPOnDemand.requests.ALL` scope for request-linked tasks.
+Note: Standalone tasks use the `general` scope. Request/project/change tasks use their respective module scopes.
 
 ## Workflow Routing
 
