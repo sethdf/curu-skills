@@ -936,6 +936,13 @@ EOF
                     fi
                     ;;
                 "read"|"r")
+                    # Read requires user token for channels:history scope
+                    if ! _ak_slack_user_configured; then
+                        echo "Error: Reading messages requires user token (slack-user-token in BWS)" >&2
+                        echo "See: auth-keeper slack -h" >&2
+                        return 1
+                    fi
+
                     local channel="${2:?Usage: auth-keeper slack read <channel> [limit]}"
                     local limit="${3:-20}"
 
@@ -944,7 +951,7 @@ EOF
                     if [[ ! "$channel" =~ ^[CDG] ]]; then
                         local ch_name="${channel#\#}"
                         local ch_list
-                        ch_list=$(_ak_slack_api "conversations.list" -d '{"types":"public_channel,private_channel","limit":200}')
+                        ch_list=$(_ak_slack_user_api "conversations.list" -d '{"types":"public_channel,private_channel","limit":200}')
                         channel_id=$(echo "$ch_list" | jq -r --arg n "$ch_name" '.channels[] | select(.name == $n) | .id')
                         if [[ -z "$channel_id" ]]; then
                             echo "Error: Channel not found: $channel" >&2
@@ -953,7 +960,7 @@ EOF
                     fi
 
                     local response
-                    response=$(_ak_slack_api "conversations.history" -d "{\"channel\":\"$channel_id\",\"limit\":$limit}")
+                    response=$(_ak_slack_user_api "conversations.history" -d "{\"channel\":\"$channel_id\",\"limit\":$limit}")
 
                     if echo "$response" | jq -e '.ok' &>/dev/null && [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
                         echo "Recent messages in $channel:"
