@@ -67,9 +67,30 @@ _ak_telegram_send() {
 # BWS Helper
 # ============================================================================
 
+# BWS cache for this session (avoids intermittent failures and redundant calls)
+_ak_bws_cache=""
+_ak_bws_cache_time=0
+
 _ak_bws_get() {
     local key="$1"
-    bws secret list 2>/dev/null | jq -r --arg k "$key" '.[] | select(.key == $k) | .value'
+    local now result
+
+    # Cache BWS list for 60 seconds
+    now=$(date +%s)
+    if [[ -z "$_ak_bws_cache" || $((now - _ak_bws_cache_time)) -gt 60 ]]; then
+        local attempts=0
+        while [[ $attempts -lt 3 ]]; do
+            _ak_bws_cache=$(bws secret list 2>/dev/null)
+            if [[ -n "$_ak_bws_cache" && "$_ak_bws_cache" != "[]" ]]; then
+                _ak_bws_cache_time=$now
+                break
+            fi
+            ((attempts++))
+            sleep 0.5
+        done
+    fi
+
+    echo "$_ak_bws_cache" | jq -r --arg k "$key" '.[] | select(.key == $k) | .value'
 }
 
 # ============================================================================
