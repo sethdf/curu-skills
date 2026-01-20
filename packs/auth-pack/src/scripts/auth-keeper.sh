@@ -957,7 +957,8 @@ EOF
                                     local user_info
                                     user_info=$(curl -s "https://slack.com/api/users.info?user=$user_id" \
                                         -H "Authorization: Bearer $token")
-                                    name=$(echo "$user_info" | jq -r '.user.real_name // .user.name // "DM"')
+                                    name=$(echo "$user_info" | jq -r '.user.real_name // .user.name // empty')
+                                    [[ -z "$name" ]] && name="DM ($user_id)"
                                     printf "  💬 %-25s %d unread\n" "$name" "$unread_count"
                                 elif [[ "$is_private" == "true" ]]; then
                                     printf "  🔒 %-25s %d unread\n" "$name" "$unread_count"
