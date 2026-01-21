@@ -35,11 +35,16 @@ const colors = {
   dim: '\x1b[2m',
 };
 
-// Get tokens from BWS
+// Get tokens from BWS (by key name)
 async function getToken(secretName: string): Promise<string> {
   try {
-    const result = await $`bws secret get ${secretName} --output json`.json();
-    return result.value;
+    // BWS requires secret ID, so we list and find by key name
+    const secrets = await $`bws secret list --output json`.json() as any[];
+    const secret = secrets.find((s: any) => s.key === secretName);
+    if (!secret) {
+      throw new Error(`Secret '${secretName}' not found in BWS`);
+    }
+    return secret.value;
   } catch (error) {
     console.error(`${colors.red}Failed to get ${secretName} from BWS${colors.reset}`);
     throw error;
