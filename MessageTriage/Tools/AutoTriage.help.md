@@ -25,11 +25,29 @@ Designed for cron jobs and scheduled automation.
 | `--source <email\|slack>` | Message source (required) | - |
 | `--channel <name>` | Slack channel (required for slack) | - |
 | `--limit <n>` | Max messages to process | 100 |
+| `--cached` | Query cached results only (instant, no API calls) | false |
+| `--fresh` | Force fresh export + AI categorization | false |
 | `--notify` | Send notification on completion | false |
 | `--dry-run` | Export/categorize but don't apply actions | false |
 | `--quiet` | Minimal output (for cron) | false |
 | `--verbose` | Detailed debug output | false |
 | `--help` | Show help | - |
+
+## Usage Modes
+
+### Cached Mode (Default for Interactive)
+```bash
+# Instant results from SQLite cache - no API calls
+bun AutoTriage.ts --source email --cached
+```
+Use this when cron keeps the cache fresh. Returns instantly.
+
+### Fresh Mode (Background/Cron)
+```bash
+# Full export + AI categorization
+bun AutoTriage.ts --source email --fresh --limit 100
+```
+Use this for cron jobs or when explicitly requesting current data.
 
 ## Environment Variables
 
