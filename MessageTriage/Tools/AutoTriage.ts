@@ -486,29 +486,6 @@ Rules:
   return totalCategorized;
 }
 
-// Placeholder to keep the rest of the file working
-async function _oldCategorizeMessages(): Promise<number> {
-  let categorized = 0;
-  for (const result of results) {
-    if (!result.id || !result.category) continue;
-
-    const category = result.category.replace(/'/g, "''");
-    const confidence = result.confidence || 5;
-    const reasoning = (result.reasoning || "").replace(/'/g, "''");
-
-    await $`sqlite3 ${config.cacheDb} "
-      UPDATE messages
-      SET category = '${category}', confidence = ${confidence}, reasoning = '${reasoning}'
-      WHERE id = '${result.id}';
-    "`.quiet();
-
-    categorized++;
-  }
-
-  log(`Categorized ${categorized} messages`, opts, "success");
-  return categorized;
-}
-
 // Generate summary report
 async function generateReport(runId: string, opts: { quiet: boolean; verbose: boolean }): Promise<string> {
   const summary = await $`sqlite3 -column -header ${config.cacheDb} "
