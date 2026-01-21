@@ -8,5 +8,6 @@ HOME=/home/ubuntu
 # Email: every 5 minutes (keeps cache fresh for instant queries)
 */5 * * * * ubuntu /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --quiet 2>&1 | logger -t autotriage-email
 
-# Slack: every 60 seconds (more timely for real-time messages)
-* * * * * ubuntu /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source slack --channel general --quiet 2>&1 | logger -t autotriage-slack
+# NOTE: Slack uses Socket Mode (real-time via WebSocket) - no polling needed
+# The slack-socket-listener systemd service handles real-time message capture
+# Messages are stored in ~/slack-data/messages.db as they arrive
