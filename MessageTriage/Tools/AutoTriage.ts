@@ -330,34 +330,36 @@ async function exportSlack(channel: string | undefined, limit: number, runId: st
 
   // Export from slackdump - ALL conversations including DMs
   // Channel types: C=public channel, G=private/mpim, D=DM
+  // Note: slackdump uses uppercase column names, user data is in DATA blob as JSON
   const result = await $`sqlite3 -json ${config.slackArchive} "
-    SELECT
-      m.channel_id || '-' || m.ts AS id,
+    SELECT DISTINCT
+      m.CHANNEL_ID || '-' || m.TS AS id,
       'slack' AS source,
-      datetime(CAST(m.ts AS REAL), 'unixepoch') AS timestamp,
-      COALESCE(u.real_name, u.name, m.user) AS from_name,
-      m.user AS from_address,
+      datetime(CAST(m.TS AS REAL), 'unixepoch') AS timestamp,
+      COALESCE(json_extract(u.DATA, '$.real_name'), u.USERNAME, json_extract(m.DATA, '$.user'), 'Unknown') AS from_name,
+      json_extract(m.DATA, '$.user') AS from_address,
       CASE
-        WHEN c.id LIKE 'D%' THEN 'DM: ' || COALESCE(u.real_name, u.name, 'Unknown')
-        WHEN c.id LIKE 'G%' THEN 'Group: ' || COALESCE(c.name, 'Private')
-        ELSE '#' || COALESCE(c.name, 'Unknown')
+        WHEN c.ID LIKE 'D%' THEN 'DM: ' || COALESCE(json_extract(u.DATA, '$.real_name'), u.USERNAME, 'Unknown')
+        WHEN c.ID LIKE 'G%' THEN 'Group: ' || COALESCE(c.NAME, 'Private')
+        ELSE '#' || COALESCE(c.NAME, 'Unknown')
       END AS subject,
-      m.text AS body_preview,
-      COALESCE(m.thread_ts, m.ts) AS thread_id,
-      c.id AS channel_id,
-      c.name AS channel_name,
+      m.TXT AS body_preview,
+      COALESCE(m.THREAD_TS, m.TS) AS thread_id,
+      c.ID AS channel_id,
+      c.NAME AS channel_name,
       CASE
-        WHEN c.id LIKE 'D%' THEN 'im'
-        WHEN c.id LIKE 'G%' THEN 'mpim'
+        WHEN c.ID LIKE 'D%' THEN 'im'
+        WHEN c.ID LIKE 'G%' THEN 'mpim'
         ELSE 'channel'
       END AS channel_type
     FROM MESSAGE m
-    LEFT JOIN S_USER u ON m.user = u.id
-    LEFT JOIN CHANNEL c ON m.channel_id = c.id
-    WHERE datetime(CAST(m.ts AS REAL), 'unixepoch') > datetime('now', '-24 hours')
-      AND m.text IS NOT NULL
-      AND m.text != ''
-    ORDER BY m.ts DESC
+    LEFT JOIN S_USER u ON json_extract(m.DATA, '$.user') = u.ID
+    LEFT JOIN CHANNEL c ON m.CHANNEL_ID = c.ID
+    WHERE datetime(CAST(m.TS AS REAL), 'unixepoch') > datetime('now', '-24 hours')
+      AND m.TXT IS NOT NULL
+      AND m.TXT <> ''
+    GROUP BY m.CHANNEL_ID, m.TS
+    ORDER BY m.TS DESC
     LIMIT ${limit};
   "`.text();
 
