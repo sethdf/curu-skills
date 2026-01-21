@@ -212,7 +212,15 @@ async function initCache(opts: { quiet: boolean; verbose: boolean }) {
       confidence INTEGER,
       reasoning TEXT,
       exported_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      run_id TEXT
+      run_id TEXT,
+      -- Slack-specific fields
+      channel_id TEXT,
+      channel_name TEXT,
+      channel_type TEXT,
+      user_id TEXT,
+      triage_status TEXT DEFAULT 'unread',
+      context_messages TEXT,
+      raw_event TEXT
     );
     CREATE TABLE IF NOT EXISTS thread_context (
       message_id TEXT,
@@ -235,6 +243,8 @@ async function initCache(opts: { quiet: boolean; verbose: boolean }) {
     CREATE INDEX IF NOT EXISTS idx_messages_source ON messages(source);
     CREATE INDEX IF NOT EXISTS idx_messages_category ON messages(category);
     CREATE INDEX IF NOT EXISTS idx_messages_run ON messages(run_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_triage_status ON messages(triage_status);
   "`.quiet();
 
   log("Cache database initialized", opts, "debug");
