@@ -20,17 +20,20 @@ Find and retrieve files from OneDrive and SharePoint (MS365) to local storage. U
 # User ID for all commands
 $userId = 'sfoley@buxtonco.com'
 
-# OneDrive root
-auth-keeper ms365 "Get-MgUserDriveRoot -UserId '$userId'"
+# Get OneDrive drive ID (required for most operations)
+auth-keeper ms365 "\$drives = Get-MgUserDrive -UserId '$userId'; \$driveId = (\$drives | Where-Object { \$_.Name -eq 'OneDrive' }).Id; Write-Host \$driveId"
 
-# List OneDrive files
-auth-keeper ms365 "Get-MgUserDriveRootChildren -UserId '$userId' | Select-Object Name, Size, LastModifiedDateTime"
+# List OneDrive root files
+auth-keeper ms365 "\$drives = Get-MgUserDrive -UserId '$userId'; \$driveId = (\$drives | Where-Object { \$_.Name -eq 'OneDrive' }).Id; Get-MgUserDriveRootChild -UserId '$userId' -DriveId \$driveId | Select-Object Name, Id, Size, LastModifiedDateTime"
 
 # Search OneDrive
-auth-keeper ms365 "Search-MgUserDriveRoot -UserId '$userId' -Q 'quarterly report' | Select-Object Name, WebUrl"
+auth-keeper ms365 "\$drives = Get-MgUserDrive -UserId '$userId'; \$driveId = (\$drives | Where-Object { \$_.Name -eq 'OneDrive' }).Id; Search-MgUserDriveRoot -UserId '$userId' -DriveId \$driveId -Q 'quarterly report' | Select-Object Name, WebUrl, Id"
 
 # List SharePoint sites
-auth-keeper ms365 "Get-MgSite -All | Select-Object DisplayName, WebUrl"
+auth-keeper ms365 "Get-MgSite -All | Select-Object DisplayName, WebUrl, Id"
+
+# Search SharePoint site
+auth-keeper ms365 "\$siteId = 'buxtonco.sharepoint.com:/sites/Buxton-IT'; \$drives = Get-MgSiteDrive -SiteId \$siteId; \$driveId = \$drives[0].Id; Search-MgDriveRoot -DriveId \$driveId -Q 'report' | Select-Object Name, WebUrl, Id"
 
 # Download file to local
 bun ~/.claude/skills/MS365Files/Tools/Download.ts --item-id <id> --output ~/WORK/scratch/
