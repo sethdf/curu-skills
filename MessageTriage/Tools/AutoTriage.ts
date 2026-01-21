@@ -245,10 +245,14 @@ async function exportEmail(limit: number, runId: string, opts: { quiet: boolean;
   log("Exporting emails from MS365...", opts);
 
   // Get unread inbox messages via auth-keeper
-  const result = await $`zsh -ic 'auth-keeper ms365 "
-    \\$inbox = Get-MgUserMailFolder -UserId \"${config.ms365User}\" | Where-Object { \\$_.DisplayName -eq \"Inbox\" }
-    Get-MgUserMailFolderMessage -UserId \"${config.ms365User}\" -MailFolderId \\$inbox.Id -Filter \"isRead eq false\" -Top ${limit} -Select \"id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead\" | ConvertTo-Json -Depth 5
-  "'`.text();
+  // Use bash -c with sourced auth-keeper to avoid zsh -ic interactive issues
+  const authKeeperScript = join(homedir(), "repos/github.com/sethdf/imladris/scripts/auth-keeper.sh");
+  const psCommand = `
+\\$inbox = Get-MgUserMailFolder -UserId '${config.ms365User}' | Where-Object { \\$_.DisplayName -eq 'Inbox' }
+Get-MgUserMailFolderMessage -UserId '${config.ms365User}' -MailFolderId \\$inbox.Id -Filter 'isRead eq false' -Top ${limit} -Select 'id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead' | ConvertTo-Json -Depth 5
+`.trim();
+
+  const result = await $`bash -c "source ${authKeeperScript} && auth-keeper ms365 \\"${psCommand.replace(/"/g, '\\"')}\\""`.text();
 
   let messages: any[];
   try {
