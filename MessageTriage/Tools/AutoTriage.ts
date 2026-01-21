@@ -312,35 +312,51 @@ Get-MgUserMailFolderMessage -UserId '${config.ms365User}' -MailFolderId $inbox.I
   return messages.length;
 }
 
-// Export messages from Slack
-async function exportSlack(channel: string, limit: number, runId: string, opts: { quiet: boolean; verbose: boolean }): Promise<number> {
-  log(`Exporting messages from Slack #${channel}...`, opts);
+// Export messages from Slack (all channels, DMs, and group DMs)
+async function exportSlack(channel: string | undefined, limit: number, runId: string, opts: { quiet: boolean; verbose: boolean }): Promise<number> {
+  log(`Exporting messages from Slack (all conversations)...`, opts);
 
   if (!existsSync(config.slackArchive)) {
     log(`Slack archive not found: ${config.slackArchive}`, opts, "error");
     return 0;
   }
 
-  // First sync latest
-  await $`slackdump resume ${config.slackArchive.replace("/slackdump.sqlite", "")}`.quiet();
+  // First sync latest from slackdump
+  try {
+    await $`slackdump resume ${config.slackArchive.replace("/slackdump.sqlite", "")}`.quiet();
+  } catch (e) {
+    log(`Slackdump sync skipped (may already be running)`, opts, "debug");
+  }
 
-  // Export from slackdump
+  // Export from slackdump - ALL conversations including DMs
+  // Channel types: C=public channel, G=private/mpim, D=DM
   const result = await $`sqlite3 -json ${config.slackArchive} "
     SELECT
-      m.ts AS id,
+      m.channel_id || '-' || m.ts AS id,
       'slack' AS source,
       datetime(CAST(m.ts AS REAL), 'unixepoch') AS timestamp,
-      COALESCE(u.real_name, m.user) AS from_name,
+      COALESCE(u.real_name, u.name, m.user) AS from_name,
       m.user AS from_address,
-      '#' || c.name AS subject,
+      CASE
+        WHEN c.id LIKE 'D%' THEN 'DM: ' || COALESCE(u.real_name, u.name, 'Unknown')
+        WHEN c.id LIKE 'G%' THEN 'Group: ' || COALESCE(c.name, 'Private')
+        ELSE '#' || COALESCE(c.name, 'Unknown')
+      END AS subject,
       m.text AS body_preview,
       COALESCE(m.thread_ts, m.ts) AS thread_id,
-      0 AS is_read
+      c.id AS channel_id,
+      c.name AS channel_name,
+      CASE
+        WHEN c.id LIKE 'D%' THEN 'im'
+        WHEN c.id LIKE 'G%' THEN 'mpim'
+        ELSE 'channel'
+      END AS channel_type
     FROM MESSAGE m
     LEFT JOIN S_USER u ON m.user = u.id
     LEFT JOIN CHANNEL c ON m.channel_id = c.id
-    WHERE c.name = '${channel}'
-      AND datetime(CAST(m.ts AS REAL), 'unixepoch') > datetime('now', '-7 days')
+    WHERE datetime(CAST(m.ts AS REAL), 'unixepoch') > datetime('now', '-24 hours')
+      AND m.text IS NOT NULL
+      AND m.text != ''
     ORDER BY m.ts DESC
     LIMIT ${limit};
   "`.text();
@@ -349,27 +365,40 @@ async function exportSlack(channel: string, limit: number, runId: string, opts: 
   try {
     messages = JSON.parse(result);
   } catch (e) {
-    log(`Failed to parse Slack data: ${e}`, opts, "error");
+    log(`Failed to parse Slack data (may be empty): ${e}`, opts, "debug");
+    return 0;
+  }
+
+  if (messages.length === 0) {
+    log("No new Slack messages in last 24 hours", opts, "debug");
     return 0;
   }
 
   // Insert into cache
   for (const msg of messages) {
-    const id = msg.id;
+    const id = (msg.id || "").replace(/'/g, "''");
     const subject = (msg.subject || "").replace(/'/g, "''");
     const fromName = (msg.from_name || "").replace(/'/g, "''");
     const fromAddr = msg.from_address || "";
     const timestamp = msg.timestamp || "";
     const preview = (msg.body_preview || "").replace(/'/g, "''").substring(0, 500);
-    const threadId = msg.thread_id || "";
+    const threadId = (msg.thread_id || "").replace(/'/g, "''");
+    const channelId = msg.channel_id || "";
+    const channelName = (msg.channel_name || "").replace(/'/g, "''");
+    const channelType = msg.channel_type || "channel";
 
     await $`sqlite3 ${config.cacheDb} "
-      INSERT OR REPLACE INTO messages (id, source, timestamp, from_name, from_address, subject, body_preview, thread_id, is_read, run_id)
-      VALUES ('${id}', 'slack', '${timestamp}', '${fromName}', '${fromAddr}', '${subject}', '${preview}', '${threadId}', 0, '${runId}');
+      INSERT OR REPLACE INTO messages (id, source, timestamp, from_name, from_address, subject, body_preview, thread_id, is_read, run_id, channel_id, channel_name, channel_type)
+      VALUES ('${id}', 'slack', '${timestamp}', '${fromName}', '${fromAddr}', '${subject}', '${preview}', '${threadId}', 0, '${runId}', '${channelId}', '${channelName}', '${channelType}');
     "`.quiet();
   }
 
-  log(`Exported ${messages.length} Slack messages to cache`, opts, "success");
+  // Log breakdown
+  const dms = messages.filter((m: any) => m.channel_type === 'im').length;
+  const mpims = messages.filter((m: any) => m.channel_type === 'mpim').length;
+  const channels = messages.filter((m: any) => m.channel_type === 'channel').length;
+  log(`Exported ${messages.length} Slack messages (${dms} DMs, ${mpims} group DMs, ${channels} channels)`, opts, "success");
+
   return messages.length;
 }
 
@@ -677,10 +706,7 @@ async function main() {
     process.exit(1);
   }
 
-  if (args.source === "slack" && !args.channel && !args.cached && !args.categorizePending) {
-    console.error(`${colors.red}Error: --channel is required for slack source (unless using --cached or --categorize-pending)${colors.reset}`);
-    process.exit(1);
-  }
+  // Channel is now optional for Slack - exports all conversations if not specified
 
   const logOpts = { quiet: args.quiet, verbose: args.verbose };
 
