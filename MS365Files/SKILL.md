@@ -84,29 +84,30 @@ User: "Show me what's in the IT team SharePoint"
 ### OneDrive Commands
 
 ```powershell
-# Get user's drive info
-Get-MgUserDrive -UserId 'sfoley@buxtonco.com'
+# Get user's drives (OneDrive and PersonalCache)
+$drives = Get-MgUserDrive -UserId 'sfoley@buxtonco.com'
+$driveId = ($drives | Where-Object { $_.Name -eq 'OneDrive' }).Id
 
-# Get drive root
-Get-MgUserDriveRoot -UserId 'sfoley@buxtonco.com'
+# Get drive root info
+Get-MgUserDriveRoot -UserId 'sfoley@buxtonco.com' -DriveId $driveId
 
-# List root folder contents
-Get-MgUserDriveRootChildren -UserId 'sfoley@buxtonco.com' |
+# List root folder contents (NOTE: command is RootChild, not RootChildren)
+Get-MgUserDriveRootChild -UserId 'sfoley@buxtonco.com' -DriveId $driveId |
   Select-Object Name, Size, LastModifiedDateTime, Id
 
-# List subfolder contents (by path)
-Get-MgUserDriveItemByPath -UserId 'sfoley@buxtonco.com' -Path ':/Documents:' |
-  Get-MgUserDriveItemChildren -UserId 'sfoley@buxtonco.com'
+# List subfolder contents by item ID
+Get-MgUserDriveItemChild -UserId 'sfoley@buxtonco.com' -DriveId $driveId -DriveItemId '<folder-id>' |
+  Select-Object Name, Size, LastModifiedDateTime, Id
 
-# Search files
-Search-MgUserDriveRoot -UserId 'sfoley@buxtonco.com' -Q 'budget 2024' |
+# Search files (REQUIRES DriveId parameter)
+Search-MgUserDriveRoot -UserId 'sfoley@buxtonco.com' -DriveId $driveId -Q 'budget 2024' |
   Select-Object Name, WebUrl, Id, @{N='Path';E={$_.ParentReference.Path}}
 
 # Get file by ID
-Get-MgUserDriveItem -UserId 'sfoley@buxtonco.com' -DriveItemId '<item-id>'
+Get-MgUserDriveItem -UserId 'sfoley@buxtonco.com' -DriveId $driveId -DriveItemId '<item-id>'
 
 # Download file content
-Get-MgUserDriveItemContent -UserId 'sfoley@buxtonco.com' -DriveItemId '<item-id>' -OutFile './localfile.xlsx'
+Get-MgUserDriveItemContent -UserId 'sfoley@buxtonco.com' -DriveId $driveId -DriveItemId '<item-id>' -OutFile './localfile.xlsx'
 ```
 
 ### SharePoint Commands
@@ -118,22 +119,39 @@ Get-MgSite -All | Select-Object DisplayName, WebUrl, Id
 # Search sites by name
 Get-MgSite -Search 'IT Team' | Select-Object DisplayName, WebUrl, Id
 
-# Get specific site by URL
-Get-MgSite -SiteId 'buxtonco.sharepoint.com:/sites/ITTeam'
+# Get specific site by URL path
+$siteId = 'buxtonco.sharepoint.com:/sites/Buxton-IT'
+$site = Get-MgSite -SiteId $siteId
+
+# Get site by composite ID (domain,site-id,web-id)
+$siteId = 'buxtonco.sharepoint.com,60baec84-a985-4d8c-9838-42c118f2f55c,89d4c574-4794-4f0e-bd52-acd5a7b41489'
 
 # List site's document libraries (drives)
-Get-MgSiteDrive -SiteId '<site-id>' | Select-Object Name, Id, WebUrl
+Get-MgSiteDrive -SiteId $siteId | Select-Object Name, Id, WebUrl
 
-# List files in a document library
-Get-MgSiteDriveRootChildren -SiteId '<site-id>' -DriveId '<drive-id>' |
+# List files in a document library root
+$drives = Get-MgSiteDrive -SiteId $siteId
+$driveId = $drives[0].Id
+Get-MgDriveItemChild -DriveId $driveId -DriveItemId 'root' |
   Select-Object Name, Size, LastModifiedDateTime, Id
 
-# Search within a site
-Search-MgSiteDriveRoot -SiteId '<site-id>' -DriveId '<drive-id>' -Q 'project plan'
+# Search within a SharePoint drive (use dynamic driveId, NOT literal with !)
+$drives = Get-MgSiteDrive -SiteId $siteId
+$driveId = $drives[0].Id
+Search-MgDriveRoot -DriveId $driveId -Q 'project plan' |
+  Select-Object Name, WebUrl, Id
 
 # Download from SharePoint
-Get-MgSiteDriveItemContent -SiteId '<site-id>' -DriveId '<drive-id>' -DriveItemId '<item-id>' -OutFile './localfile.docx'
+Get-MgDriveItemContent -DriveId $driveId -DriveItemId '<item-id>' -OutFile './localfile.docx'
 ```
+
+### Important Notes
+
+1. **DriveId with `!` character**: When drive IDs contain `!` (e.g., `b!abc123...`), always use variables to hold them. Literal strings with `!` cause PowerShell history expansion issues.
+
+2. **Command naming**: Use `Get-MgUserDriveRootChild` (singular), NOT `Get-MgUserDriveRootChildren` (doesn't exist).
+
+3. **Search requires DriveId**: `Search-MgUserDriveRoot` requires `-DriveId` parameter, not just `-UserId`.
 
 ## Error Handling
 
