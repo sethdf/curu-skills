@@ -29,30 +29,38 @@ Extract search terms from user request. Common patterns:
 
 ### OneDrive Search
 
+**Important**: OneDrive search requires the DriveId parameter. Get it first, then search.
+
 ```bash
-auth-keeper ms365 "Search-MgUserDriveRoot -UserId 'sfoley@buxtonco.com' -Q '<search-query>' | Select-Object Name, @{N='Path';E={\$_.ParentReference.Path}}, WebUrl, Id, Size, LastModifiedDateTime | Format-Table -AutoSize"
+auth-keeper ms365 "\$drives = Get-MgUserDrive -UserId 'sfoley@buxtonco.com'; \$driveId = (\$drives | Where-Object { \$_.Name -eq 'OneDrive' }).Id; Search-MgUserDriveRoot -UserId 'sfoley@buxtonco.com' -DriveId \$driveId -Q '<search-query>' | Select-Object Name, @{N='Path';E={\$_.ParentReference.Path}}, WebUrl, Id, Size, LastModifiedDateTime | Format-Table -AutoSize"
 ```
 
 ### SharePoint Site Search
 
 First, identify the site:
 ```bash
-auth-keeper ms365 "Get-MgSite -Search '<site-name>' | Select-Object DisplayName, Id"
+auth-keeper ms365 "Get-MgSite -Search '<site-name>' | Select-Object DisplayName, Id, WebUrl"
 ```
 
-Then search within it:
+Then search within it (note: use variable for DriveId to avoid `!` escaping issues):
 ```bash
-auth-keeper ms365 "\$site = Get-MgSite -Search '<site-name>' | Select-Object -First 1; \$drive = Get-MgSiteDrive -SiteId \$site.Id | Select-Object -First 1; Search-MgSiteDriveRoot -SiteId \$site.Id -DriveId \$drive.Id -Q '<search-query>' | Select-Object Name, WebUrl, Id"
+auth-keeper ms365 "\$site = Get-MgSite -Search '<site-name>' | Select-Object -First 1; \$drives = Get-MgSiteDrive -SiteId \$site.Id; \$driveId = \$drives[0].Id; Search-MgDriveRoot -DriveId \$driveId -Q '<search-query>' | Select-Object Name, WebUrl, Id"
+```
+
+For known Buxton sites, use the composite SiteId format:
+```bash
+# IT SharePoint
+auth-keeper ms365 "\$siteId = 'buxtonco.sharepoint.com,60baec84-a985-4d8c-9838-42c118f2f55c,89d4c574-4794-4f0e-bd52-acd5a7b41489'; \$drives = Get-MgSiteDrive -SiteId \$siteId; \$driveId = \$drives[0].Id; Search-MgDriveRoot -DriveId \$driveId -Q '<search-query>' | Select-Object Name, WebUrl, Id"
 ```
 
 ### Search Everywhere
 
 ```bash
 # OneDrive
-auth-keeper ms365 "Search-MgUserDriveRoot -UserId 'sfoley@buxtonco.com' -Q '<query>' | Select-Object Name, @{N='Location';E={'OneDrive'}}, WebUrl, Id"
+auth-keeper ms365 "\$drives = Get-MgUserDrive -UserId 'sfoley@buxtonco.com'; \$driveId = (\$drives | Where-Object { \$_.Name -eq 'OneDrive' }).Id; Search-MgUserDriveRoot -UserId 'sfoley@buxtonco.com' -DriveId \$driveId -Q '<query>' | Select-Object Name, @{N='Location';E={'OneDrive'}}, WebUrl, Id"
 
 # All SharePoint sites (may be slow)
-auth-keeper ms365 "Get-MgSite -All | ForEach-Object { \$site = \$_; Get-MgSiteDrive -SiteId \$site.Id -ErrorAction SilentlyContinue | ForEach-Object { Search-MgSiteDriveRoot -SiteId \$site.Id -DriveId \$_.Id -Q '<query>' -ErrorAction SilentlyContinue | Select-Object Name, @{N='Site';E={\$site.DisplayName}}, WebUrl, Id } }"
+auth-keeper ms365 "Get-MgSite -All | ForEach-Object { \$site = \$_; Get-MgSiteDrive -SiteId \$site.Id -ErrorAction SilentlyContinue | ForEach-Object { \$driveId = \$_.Id; Search-MgDriveRoot -DriveId \$driveId -Q '<query>' -ErrorAction SilentlyContinue | Select-Object Name, @{N='Site';E={\$site.DisplayName}}, WebUrl, Id } }"
 ```
 
 ## Step 4: Present Results
