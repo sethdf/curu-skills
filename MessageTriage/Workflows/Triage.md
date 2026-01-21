@@ -1,258 +1,150 @@
 # Triage Workflow
 
-**Complete end-to-end message triage: Export → Categorize → Report → Apply**
+**Interactive message triage - defaults to instant cached results.**
 
-This is the main workflow that orchestrates the full triage process.
+Cron jobs continuously export and categorize messages in the background. Interactive queries just read from cache for instant results.
 
-## Prerequisites
+## Default Behavior: Cached (Instant)
 
-- `auth-keeper` configured for MS365 (email)
-- `slackdump` configured (Slack)
-- `sqlite3` available
-- PAI Inference tool: `~/.claude/tools/Inference.ts`
+When user asks to "triage inbox" or "check messages", **default to cached results**:
+
+```bash
+bun Tools/AutoTriage.ts --source email --cached
+```
+
+This returns instantly from SQLite cache - no API calls, no AI inference.
+
+## When to Use Fresh Mode
+
+Only use `--fresh` when user explicitly asks:
+- "get current/latest emails"
+- "refresh triage"
+- "re-categorize messages"
+
+```bash
+bun Tools/AutoTriage.ts --source email --fresh --limit 50
+```
 
 ## Step 1: Detect Source
 
-Determine message source from user request:
+| User Says | Source |
+|-----------|--------|
+| "inbox", "email", "ms365", "outlook" | `email` |
+| "#channel", "slack", "channel" | `slack` |
+| Default | `email` |
 
-| User Says | Source | Adapter |
-|-----------|--------|---------|
-| "inbox", "email", "ms365", "outlook" | `email` | MS365 Graph API |
-| "#channel", "slack", "channel" | `slack` | Slackdump SQLite |
-| Default (no specification) | `email` | MS365 Graph API |
-
-## Step 2: Export Messages
-
-### For Email (MS365)
+## Step 2: Query Cache (Default)
 
 ```bash
-zsh -ic 'auth-keeper ms365 "
-  \$inbox = Get-MgUserMailFolder -UserId \"sfoley@buxtonco.com\" | Where-Object { \$_.DisplayName -eq \"Inbox\" }
-  Get-MgUserMailFolderMessage -UserId \"sfoley@buxtonco.com\" -MailFolderId \$inbox.Id -Filter \"isRead eq false\" -Top 100 -Select \"id,subject,from,receivedDateTime,bodyPreview,conversationId\" | ConvertTo-Json
-"'
+# Instant cached results
+bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts \
+  --source email \
+  --cached
 ```
 
-Store results in working memory for categorization.
+Output includes:
+- Total messages (last 24 hours)
+- Action-required count
+- Category breakdown
+- Top action items with confidence scores
 
-### For Slack
+## Step 3: Present Results
 
-```bash
-# Sync latest messages
-slackdump resume ~/slack-archive/
-
-# Query recent messages
-sqlite3 ~/slack-archive/slackdump.sqlite "
-  SELECT
-    m.ts AS id,
-    datetime(CAST(m.ts AS REAL), 'unixepoch') AS timestamp,
-    u.real_name AS from_name,
-    c.name AS channel,
-    substr(m.text, 1, 500) AS body
-  FROM MESSAGE m
-  LEFT JOIN S_USER u ON m.user = u.id
-  LEFT JOIN CHANNEL c ON m.channel_id = c.id
-  WHERE datetime(CAST(m.ts AS REAL), 'unixepoch') > datetime('now', '-7 days')
-  ORDER BY m.ts DESC
-  LIMIT 100;
-"
-```
-
-## Step 3: Gather Thread Context
-
-For each message, retrieve thread context per `ThreadContext.md`:
-
-### Email Thread Context
-
-```bash
-zsh -ic 'auth-keeper ms365 "
-  Get-MgUserMessage -UserId \"sfoley@buxtonco.com\" -Filter \"conversationId eq '\''$CONV_ID'\''\" -OrderBy \"receivedDateTime\" -Top 5 -Select \"subject,from,receivedDateTime,bodyPreview\" | ConvertTo-Json
-"'
-```
-
-### Slack Thread Context
-
-```sql
-SELECT ts, user, text
-FROM MESSAGE
-WHERE thread_ts = '$PARENT_TS' OR ts = '$PARENT_TS'
-ORDER BY ts
-LIMIT 10;
-```
-
-## Step 4: Define Categories
-
-Use categories appropriate to the source and context. Default categories:
-
-### Email Categories
-
-| Category | Description |
-|----------|-------------|
-| `Action-Required` | Needs response or action from user |
-| `FYI-Internal` | Internal notifications, no action needed |
-| `SaaS-Notifications` | Automated alerts from SaaS tools |
-| `AWS-Cloud` | Cloud infrastructure alerts |
-| `Vendor-Sales` | Sales/marketing from vendors |
-| `Support-Request` | Customer/user support requests |
-| `Colleagues` | Direct messages from known colleagues |
-
-### Slack Categories
-
-| Category | Description |
-|----------|-------------|
-| `Urgent` | Requires immediate attention |
-| `Action-Needed` | Needs response but not urgent |
-| `Discussion` | FYI, ongoing discussion |
-| `Resolved` | Issue already resolved |
-| `Noise` | Low-value, can be ignored |
-
-## Step 5: AI Categorization
-
-For each message with thread context, use PAI Inference:
-
-```bash
-cat << 'EOF' | bun ~/.claude/tools/Inference.ts standard
-# Message Categorization
-
-## Categories
-- Action-Required: Needs response or action
-- FYI-Internal: Internal notification, no action
-- SaaS-Notifications: Automated SaaS alerts
-- AWS-Cloud: Cloud infrastructure
-- Vendor-Sales: Sales/marketing
-- Support-Request: Customer support
-- Colleagues: Direct colleague messages
-
-## Message to Categorize
-
-**From:** ${FROM}
-**Subject:** ${SUBJECT}
-**Preview:** ${BODY_PREVIEW}
-
-## Thread Context (oldest first)
-${THREAD_CONTEXT}
-
-## Task
-
-Categorize this message. Output JSON only:
-
-```json
-{
-  "category": "Category-Name",
-  "confidence": 8,
-  "reasoning": "Brief explanation"
-}
-```
-EOF
-```
-
-### Batch Processing
-
-For efficiency, batch 10-20 messages per inference call:
-
-```bash
-cat << 'EOF' | bun ~/.claude/tools/Inference.ts standard
-# Batch Message Categorization
-
-## Categories
-[same as above]
-
-## Messages to Categorize
-
-### Message 1
-**ID:** ${ID_1}
-**From:** ${FROM_1}
-**Subject:** ${SUBJECT_1}
-**Thread Context:** ${CONTEXT_1}
-
-### Message 2
-[...]
-
-## Task
-
-Categorize each message. Output JSON array:
-
-```json
-[
-  {"id": "msg-1", "category": "Action-Required", "confidence": 9, "reasoning": "..."},
-  {"id": "msg-2", "category": "SaaS-Notifications", "confidence": 8, "reasoning": "..."}
-]
-```
-EOF
-```
-
-## Step 6: Generate Report
-
-Present categorization summary to user:
+Format the cached results for the user:
 
 ```markdown
-## Triage Summary
+## Email Triage Summary
 
-**Source:** Email (MS365 Inbox)
-**Messages Processed:** 127
-**Processing Time:** 4m 23s
+**Action Required:** 12 messages need attention
+**Total Categorized:** 127 messages (last 24 hours)
 
 ### By Category
+| Category | Count | Avg Confidence |
+|----------|-------|----------------|
+| SaaS-Notifications | 45 | 9.5 |
+| FYI-Internal | 31 | 8.1 |
+| Colleagues | 23 | 8.4 |
+| Vendor-Sales | 16 | 7.8 |
+| Action-Required | 12 | 7.2 |
 
-| Category | Count | High Confidence | Examples |
-|----------|-------|-----------------|----------|
-| Action-Required | 12 | 10 | "Budget approval needed", "Please review PR" |
-| SaaS-Notifications | 45 | 43 | Site24x7, Datadog, PagerDuty |
-| Colleagues | 23 | 20 | Direct messages from team |
-| FYI-Internal | 31 | 28 | Newsletter, announcements |
-| Vendor-Sales | 16 | 14 | Marketing emails |
-
-### Low Confidence Items (Review Needed)
-
-| From | Subject | Suggested | Confidence |
-|------|---------|-----------|------------|
-| alice@ex.com | Re: Project | Action-Required | 5 |
-| vendor@ex.com | Important Update | Vendor-Sales | 4 |
+### Action Required Items
+1. alice@example.com - "Budget approval needed" (conf: 9)
+2. bob@example.com - "PR review request" (conf: 8)
+...
 ```
 
-## Step 7: Apply Actions (With Approval)
+## Step 4: Offer Actions (Optional)
 
-After user reviews and approves:
+If user wants to act on results:
 
-### Email: Apply Categories
+### Archive by Category
+```bash
+# User: "Archive all SaaS notifications"
+# → Query cache for SaaS-Notifications IDs
+# → Bulk move to archive via MS365
+```
+
+### Mark as Read
+```bash
+# User: "Mark all FYI-Internal as read"
+# → Query cache for FYI-Internal IDs
+# → Bulk update via MS365
+```
+
+## Fresh Mode (On Request)
+
+When user explicitly requests fresh data:
 
 ```bash
-# Tag with Outlook categories
-zsh -ic 'auth-keeper ms365 "
-  Update-MgUserMessage -UserId \"sfoley@buxtonco.com\" -MessageId \"$MSG_ID\" -Categories @(\"Triage\", \"$CATEGORY\")
-"'
+# Full export + AI categorization
+bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts \
+  --source email \
+  --fresh \
+  --limit 100 \
+  --verbose
 ```
 
-### Email: Archive Low-Value
+This takes 30-60 seconds depending on message count.
 
-```bash
-# Move to archive
-ARCHIVE_ID="AAMkADI3MmY0MzEyLTdmZjUtNDlmYy1hY2M0LWM0OWI5MTk4OTJmZAAuAAAAAADgR5-ehmMHQ56-S2XLLTuRAQB0VhUO-AdETYjxkGzxsZAvAAEi3SN1AAA="
+## Cron Background Jobs
 
-zsh -ic 'auth-keeper ms365 "
-  Move-MgUserMessage -UserId \"sfoley@buxtonco.com\" -MessageId \"$MSG_ID\" -DestinationId \"$ARCHIVE_ID\"
-"'
+These run automatically to keep cache fresh:
+
+```cron
+# Email: every 5 minutes
+*/5 * * * * bun /path/to/AutoTriage.ts --source email --quiet
+
+# Slack: every 60 seconds
+* * * * * bun /path/to/AutoTriage.ts --source slack --channel general --quiet
 ```
 
-### Slack: React or Move
+With these running, interactive queries are always instant.
 
-Slack doesn't support categories, so options are:
-- Add emoji reactions as pseudo-categories
-- Generate action list for manual processing
-- Export to task management system
+## Decision Tree
+
+```
+User: "Triage my inbox"
+         │
+         ▼
+    ┌─────────────────┐
+    │ Explicit fresh? │
+    │ ("current",     │
+    │  "refresh",     │
+    │  "re-categorize")│
+    └────────┬────────┘
+             │
+      No     │     Yes
+      ▼      │      ▼
+  ┌──────┐   │  ┌──────────┐
+  │--cached│  │  │--fresh   │
+  │Instant │  │  │30-60 sec │
+  └──────┘   │  └──────────┘
+```
 
 ## Error Handling
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `auth-keeper not found` | Not in interactive shell | Use `zsh -ic` wrapper |
-| `Token expired` | MS365 token stale | Re-auth: `auth-keeper ms365 --auth` |
-| `No messages found` | Empty result | Report "No unread messages" |
-| `Inference failed` | API issue | Retry with smaller batch |
-
-## Output
-
-On completion, provide:
-1. Category summary table
-2. List of low-confidence items for review
-3. Recommended bulk actions
-4. Confirmation prompt before applying changes
+| Scenario | Response |
+|----------|----------|
+| Empty cache | "No cached results. Running fresh triage..." → --fresh |
+| Stale cache (>1 hour) | Show results + "Cache is 2 hours old. Run fresh?" |
+| Cache DB missing | Initialize + run --fresh |
