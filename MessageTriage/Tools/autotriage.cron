@@ -2,11 +2,11 @@
 # Install: sudo cp autotriage.cron /etc/cron.d/autotriage && sudo chmod 644 /etc/cron.d/autotriage
 
 SHELL=/bin/bash
-PATH=/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.bun/bin
+PATH=/home/ubuntu/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin
 HOME=/home/ubuntu
 
 # Email: every 5 minutes (keeps cache fresh for instant queries)
-*/5 * * * * ubuntu /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --quiet 2>&1 | logger -t autotriage-email
+*/5 * * * * ubuntu /home/ubuntu/.nix-profile/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --fresh --quiet 2>&1 | logger -t autotriage-email
 
 # NOTE: Slack uses Socket Mode (real-time via WebSocket) - no polling needed
 # The slack-socket-listener systemd service handles real-time message capture
