@@ -145,11 +145,14 @@ ${colors.cyan}AutoTriage${colors.reset} - Headless message triage for cron/sched
 
 ${colors.yellow}USAGE:${colors.reset}
   bun AutoTriage.ts --source email [options]
-  bun AutoTriage.ts --source slack --channel general [options]
+  bun AutoTriage.ts --source email --cached           # Instant: query cache only
+  bun AutoTriage.ts --source slack --channel general  # Fresh: export + categorize
 
 ${colors.yellow}OPTIONS:${colors.reset}
   --source <email|slack>     Message source (required)
-  --channel <name>           Slack channel (required for slack)
+  --channel <name>           Slack channel (required for slack fresh mode)
+  --cached                   Query cached results only (instant, no API calls)
+  --fresh                    Force fresh export and AI categorization
   --limit <n>                Max messages to process (default: 100)
   --notify                   Send notification on completion
   --dry-run                  Export and categorize but don't apply
@@ -157,22 +160,26 @@ ${colors.yellow}OPTIONS:${colors.reset}
   --verbose                  Detailed output for debugging
   --help                     Show this help
 
+${colors.yellow}MODES:${colors.reset}
+  ${colors.green}--cached${colors.reset}  Instant results from SQLite cache (use for interactive queries)
+  ${colors.green}--fresh${colors.reset}   Full export + AI categorization (use for cron background jobs)
+
 ${colors.yellow}EXAMPLES:${colors.reset}
-  # Triage email inbox
+  # Interactive: instant cached results
+  bun AutoTriage.ts --source email --cached
+
+  # Background: fresh export + categorize
   bun AutoTriage.ts --source email --limit 50 --notify
 
-  # Triage slack channel
-  bun AutoTriage.ts --source slack --channel support --notify
+  # Slack cached results
+  bun AutoTriage.ts --source slack --cached
 
-  # Dry run with verbose output
-  bun AutoTriage.ts --source email --dry-run --verbose
+${colors.yellow}CRON SETUP (recommended):${colors.reset}
+  # Email: every 5 minutes
+  */5 * * * * bun /path/to/AutoTriage.ts --source email --quiet
 
-${colors.yellow}CRON EXAMPLES:${colors.reset}
-  # Every 4 hours
-  0 */4 * * * bun /path/to/AutoTriage.ts --source email --notify --quiet
-
-  # Daily at 8 AM
-  0 8 * * * bun /path/to/AutoTriage.ts --source email --limit 200 --notify --quiet
+  # Slack: every 60 seconds
+  * * * * * bun /path/to/AutoTriage.ts --source slack --channel general --quiet
 
 ${colors.yellow}ENVIRONMENT:${colors.reset}
   MS365_USER      MS365 user email (default: sfoley@buxtonco.com)
