@@ -108,8 +108,8 @@ User: "Export my unread emails for AI categorization"
 # Quick test
 bun Tools/AutoTriage.ts --source email --limit 10 --dry-run --verbose
 
-# Cron-ready (every 4 hours)
-0 */4 * * * bun /path/to/Tools/AutoTriage.ts --source email --notify --quiet
+# Instant cached results (default for interactive)
+bun Tools/AutoTriage.ts --source email --cached
 ```
 
 ### AutoTriage CLI Options
@@ -117,6 +117,8 @@ bun Tools/AutoTriage.ts --source email --limit 10 --dry-run --verbose
 | Flag | Description |
 |------|-------------|
 | `--source <email\|slack>` | Message source (required) |
+| `--cached` | Query cached results only (instant) |
+| `--fresh` | Force fresh export + AI categorization |
 | `--channel <name>` | Slack channel (for slack) |
 | `--limit <n>` | Max messages (default: 100) |
 | `--notify` | Send notification on completion |
@@ -125,23 +127,27 @@ bun Tools/AutoTriage.ts --source email --limit 10 --dry-run --verbose
 
 **Full documentation:** `Tools/AutoTriage.help.md`
 
-### Example: Setup Daily Email Triage
+### Background Data Collection
+
+| Source | Method | Frequency |
+|--------|--------|-----------|
+| Email | Cron polling | Every 5 minutes |
+| Slack | Socket Mode | Real-time (systemd service) |
 
 ```bash
-# Add to crontab
-crontab -e
-
-# Daily at 8am
-0 8 * * * /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --limit 200 --notify --quiet 2>&1 | logger -t autotriage
+# Install email cron (Slack is already real-time via Socket Mode)
+sudo cp Tools/autotriage.cron /etc/cron.d/autotriage
+sudo chmod 644 /etc/cron.d/autotriage
 ```
 
 ## Dependencies
 
 **PAI Skills Used:**
 - `~/.claude/skills/CORE/` - System infrastructure
-- `~/.claude/tools/Inference.ts` - AI categorization (Sonnet)
+- `~/.claude/skills/CORE/Tools/Inference.ts` - AI categorization (Sonnet)
 
 **External Tools:**
 - `auth-keeper` - MS365 Graph API authentication
-- `slackdump` - Slack archive to SQLite
+- `slack-socket-listener` - Real-time Slack messages (systemd)
+- `slackdump` - Slack archive backup (hourly cron)
 - `sqlite3` - Local message cache queries
