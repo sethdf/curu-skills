@@ -590,20 +590,27 @@ async function main() {
     process.exit(1);
   }
 
-  if (args.source === "slack" && !args.channel) {
-    console.error(`${colors.red}Error: --channel is required for slack source${colors.reset}`);
+  if (args.source === "slack" && !args.channel && !args.cached) {
+    console.error(`${colors.red}Error: --channel is required for slack source (unless using --cached)${colors.reset}`);
     process.exit(1);
   }
 
   const logOpts = { quiet: args.quiet, verbose: args.verbose };
-  const runId = `run-${Date.now()}`;
-
-  log(`Starting AutoTriage run: ${runId}`, logOpts);
-  log(`Source: ${args.source}, Limit: ${args.limit}, DryRun: ${args.dryRun}`, logOpts, "debug");
 
   try {
-    // Initialize
+    // Initialize cache
     await initCache(logOpts);
+
+    // CACHED MODE: Just query existing results (instant)
+    if (args.cached) {
+      await queryCached(args.source, logOpts);
+      process.exit(0);
+    }
+
+    // FRESH MODE: Full export + categorization
+    const runId = `run-${Date.now()}`;
+    log(`Starting AutoTriage run: ${runId}`, logOpts);
+    log(`Source: ${args.source}, Limit: ${args.limit}, DryRun: ${args.dryRun}`, logOpts, "debug");
 
     // Record run start
     await $`sqlite3 ${config.cacheDb} "
@@ -652,10 +659,6 @@ async function main() {
     log(`AutoTriage complete: ${exported} messages processed, ${categorized} categorized`, logOpts, "success");
   } catch (e) {
     log(`AutoTriage failed: ${e}`, logOpts, "error");
-    await $`sqlite3 ${config.cacheDb} "
-      UPDATE triage_runs SET status = 'failed', completed_at = datetime('now')
-      WHERE id = '${runId}';
-    "`.quiet();
     process.exit(1);
   }
 }
