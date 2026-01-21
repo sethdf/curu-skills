@@ -1,0 +1,10 @@
+{
+  "name": "slack-listener",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@slack/socket-mode": "^2.0.0",
+    "@slack/web-api": "^7.0.0",
+    "better-sqlite3": "^11.0.0"
+  }
+}
