@@ -99,22 +99,13 @@ function initDatabase(dbPath: string): Database {
   return db;
 }
 
-// Log message to file and console
+// Log message to console (file logging removed for simplicity)
 function log(level: string, message: string, data?: any) {
   const timestamp = new Date().toISOString();
   const color = level === 'ERROR' ? colors.red : level === 'WARN' ? colors.yellow : colors.green;
 
   const logLine = `[${timestamp}] ${level}: ${message}`;
   console.log(`${color}${logLine}${colors.reset}`, data ? JSON.stringify(data, null, 2) : '');
-
-  // Append to log file
-  try {
-    const logDir = join(LOG_PATH, '..');
-    if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
-    const file = Bun.file(LOG_PATH);
-    const existing = existsSync(LOG_PATH) ? await file.text() : '';
-    Bun.write(LOG_PATH, existing + `${logLine} ${data ? JSON.stringify(data) : ''}\n`);
-  } catch {}
 }
 
 // Determine channel type from ID
