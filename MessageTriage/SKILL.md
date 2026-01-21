@@ -40,6 +40,7 @@ Universal message triage system with AI-powered categorization. Handles messages
 | **Triage** | "triage messages", "categorize inbox" | `Workflows/Triage.md` |
 | **Export** | "export messages", "cache emails locally" | `Workflows/Export.md` |
 | **Categorize** | "categorize with AI", "classify messages" | `Workflows/Categorize.md` |
+| **CronSetup** | "automate triage", "schedule triage", "setup cron" | `Workflows/CronSetup.md` |
 
 ## Quick Reference
 
