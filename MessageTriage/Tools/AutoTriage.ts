@@ -750,7 +750,7 @@ async function main() {
     if (args.source === "email") {
       exported = await exportEmail(args.limit, runId, logOpts);
     } else if (args.source === "slack") {
-      exported = await exportSlack(args.channel!, args.limit, runId, logOpts);
+      exported = await exportSlack(args.channel, args.limit, runId, logOpts);
     }
 
     if (exported === 0) {
