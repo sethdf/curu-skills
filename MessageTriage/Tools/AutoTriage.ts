@@ -404,27 +404,34 @@ async function categorizeMessages(runId: string, opts: { quiet: boolean; verbose
     )
     .join("\n");
 
-  const prompt = `# Batch Message Categorization
-
-## Categories
+  const systemPrompt = `You are an email categorization assistant. Categorize emails into these categories:
 ${categories}
 
-## Messages to Categorize
-${messageList}
+Return ONLY a valid JSON array with this structure:
+[{"id": "msg-id", "category": "Category-Name", "confidence": 8, "reasoning": "brief reason"}]
 
-## Task
-Categorize each message. Return ONLY a JSON array:
+Rules:
+- confidence is 1-10 (10 = very certain)
+- reasoning should be 5-15 words
+- Use exact category names from the list above`;
 
-\`\`\`json
-[
-  {"id": "msg-id", "category": "Category-Name", "confidence": 8, "reasoning": "brief reason"}
-]
-\`\`\``;
+  const userPrompt = `Categorize these messages:
 
-  // Call PAI Inference
+${messageList}`;
+
+  // Call PAI Inference with system and user prompts
   log(`Categorizing ${messages.length} messages...`, opts, "debug");
 
-  const inferenceResult = await $`echo ${prompt} | bun ${config.inferenceScript} standard`.text();
+  // Write prompts to temp files to avoid shell escaping issues
+  const sysPromptFile = `/tmp/autotriage-sys-${runId}.txt`;
+  const usrPromptFile = `/tmp/autotriage-usr-${runId}.txt`;
+  await Bun.write(sysPromptFile, systemPrompt);
+  await Bun.write(usrPromptFile, userPrompt);
+
+  const inferenceResult = await $`bun ${config.inferenceScript} --level standard "$(cat ${sysPromptFile})" "$(cat ${usrPromptFile})"`.text();
+
+  // Clean up temp files
+  await $`rm -f ${sysPromptFile} ${usrPromptFile}`.quiet();
 
   // Parse JSON from response
   let results: any[];
