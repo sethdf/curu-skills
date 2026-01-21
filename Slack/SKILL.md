@@ -12,143 +12,221 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 # Slack
 
-CLI-first Slack integration using auth-keeper backend. Token-efficient - loads only when invoked.
+Real-time Slack integration via Socket Mode with AI-assisted triage. Messages arrive instantly via WebSocket and are stored locally for intelligent processing.
+
+## Architecture
+
+```
+┌─────────────────┐    WebSocket     ┌──────────────────┐
+│   Slack API     │ ───────────────► │  SlackListener   │
+│  (Socket Mode)  │    Real-time     │   (systemd)      │
+└─────────────────┘                  └────────┬─────────┘
+                                              │
+                                              ▼
+┌─────────────────┐                  ┌──────────────────┐
+│   Slackdump     │ ────────────────►│  SQLite DBs      │
+│  (hourly cron)  │     Backup       │                  │
+└─────────────────┘                  │  Primary:        │
+                                     │  ~/slack-data/   │
+                                     │  messages.db     │
+                                     │                  │
+                                     │  Archive:        │
+                                     │  ~/slack-archive/│
+                                     │  slackdump.sqlite│
+                                     └──────────────────┘
+```
+
+## Data Sources
+
+| Source | Type | Location | Use Case |
+|--------|------|----------|----------|
+| **Real-time DB** | Primary | `~/slack-data/messages.db` | Triage, recent messages, AI processing |
+| **Archive DB** | Backup | `~/slack-archive/slackdump.sqlite` | Historical search, older messages |
+
+**Triage always queries real-time DB first.** Archive is only used when searching historical data beyond the real-time window.
 
 ## Quick Start
 
 ```bash
-/slack                       # Show recent activity
-/slack channels              # List channels
-/slack read #general         # Read recent messages
-/slack send #general "msg"   # Send message
-/slack sync                  # Incremental archive sync (slackdump)
+/slack                       # Triage - show unread messages
+/slack status                # Check listener and database status
+/slack search "keyword"      # Search messages
+/slack send #general "msg"   # Send message (via auth-keeper)
 ```
 
-## Backend
+## Services
 
-Uses `auth-keeper slack` for all operations. Token stored in BWS as `slack-bot-token`.
+### Socket Mode Listener (Primary)
 
-## Quick Reference
+Real-time message capture via WebSocket. Runs as systemd user service.
 
 ```bash
-# Check status
-auth-keeper status
+# Service management
+systemctl --user status slack-listener
+systemctl --user restart slack-listener
+journalctl --user -u slack-listener -f    # Watch logs
 
-# List channels
-auth-keeper slack channels
+# Database location
+~/slack-data/messages.db
+```
 
-# Read channel messages
-auth-keeper slack read #general 10
+**Captured Events:**
+- `message.im` - Direct messages
+- `message.mpim` - Group DMs (multi-party)
+- `message.channels` - Public channels
+- `message.groups` - Private channels
 
-# Send message
-auth-keeper slack send #general "Build complete!"
+### Slackdump Archive (Backup)
 
-# Test authentication
-auth-keeper slack auth
+Hourly incremental backup via cron. Provides historical depth.
+
+```bash
+# Cron schedule (every hour at :00)
+0 * * * * slackdump resume ~/slack-archive/
+
+# Manual sync
+slackdump resume ~/slack-archive/
+
+# Archive location
+~/slack-archive/slackdump.sqlite
+```
+
+## Database Schema (Real-time)
+
+```sql
+-- Messages table
+CREATE TABLE messages (
+  id TEXT PRIMARY KEY,           -- channel_id-ts
+  channel_id TEXT NOT NULL,
+  channel_name TEXT,
+  channel_type TEXT,             -- dm, mpim, channel, group_dm
+  user_id TEXT,
+  user_name TEXT,
+  text TEXT,
+  ts TEXT NOT NULL,
+  thread_ts TEXT,
+  received_at DATETIME,
+  triage_status TEXT DEFAULT 'unread',  -- unread, read, actioned, archived
+  triage_priority TEXT,          -- high, medium, low
+  triage_notes TEXT,
+  raw_event TEXT                 -- Full JSON for complex processing
+);
+
+-- Supporting tables
+CREATE TABLE channels (id, name, type, is_member, updated_at);
+CREATE TABLE users (id, name, real_name, email, updated_at);
+```
+
+## Triage Workflow
+
+When `/slack` is invoked:
+
+1. **Query real-time DB** for unread messages
+2. **Group by priority:**
+   - DMs and mentions → High
+   - Thread replies → Medium
+   - Channel messages → Low
+3. **Present summary** with quick actions
+4. **Mark as read** after review
+
+```sql
+-- Get unread messages for triage
+SELECT channel_name, channel_type, user_name, text, received_at
+FROM messages
+WHERE triage_status = 'unread'
+ORDER BY
+  CASE channel_type WHEN 'dm' THEN 1 WHEN 'mpim' THEN 2 ELSE 3 END,
+  received_at DESC;
 ```
 
 ## Workflow Routing
 
 | Workflow | Trigger | File |
 |----------|---------|------|
+| **Triage** | "/slack", "check slack", "slack messages" | `Workflows/Triage.md` |
 | **Setup** | "setup slack", "configure slack" | `Workflows/Setup.md` |
-| **Triage** | "/slack", "check slack" | `Workflows/Triage.md` |
-| **Sync** | "sync slack", "archive slack", "backup slack" | `Workflows/Sync.md` |
+| **Sync** | "sync slack", "archive slack" | `Workflows/Sync.md` |
 
 ## Authentication
 
-Slack uses Bot tokens. Stored in Bitwarden Secrets Manager:
+Three tokens stored in BWS (Bitwarden Secrets):
+
+| Token | Format | Purpose |
+|-------|--------|---------|
+| `slack-app-token` | xapp-... | Socket Mode connection |
+| `slack-user-token` | xoxp-... | API calls (acts as user) |
+| `slack-bot-token` | xoxb-... | Legacy/backup |
+
+### Required Scopes
+
+**App-Level Token:**
+- `connections:write` - Socket Mode
+
+**User Token (Event Subscriptions):**
+- `message.im` - DM events
+- `message.mpim` - Group DM events
+- `message.channels` - Channel events
+- `message.groups` - Private channel events
+
+## Tools
+
+| Tool | Purpose | Location |
+|------|---------|----------|
+| `SlackListener.ts` | Socket Mode daemon | `Tools/SlackListener.ts` |
 
 ```bash
-# Secret key in BWS
-slack-bot-token    # xoxb-... format
+# Manual listener (for testing)
+bun ~/.claude/skills/Slack/Tools/SlackListener.ts
+
+# Check status
+bun ~/.claude/skills/Slack/Tools/SlackListener.ts --status
+
+# Initialize database only
+bun ~/.claude/skills/Slack/Tools/SlackListener.ts --init-db
 ```
-
-### Required Bot Scopes
-
-Add these scopes in Slack App settings:
-- `channels:read` - List channels
-- `channels:history` - Read channel messages
-- `chat:write` - Send messages
-- `users:read` - User info
-- `im:read`, `im:write`, `im:history` - Direct messages
-
-## Channel References
-
-Channels can be referenced by:
-- Name: `#general`, `general`
-- ID: `C0123456789`
 
 ## Examples
 
-**Example 1: Morning check-in**
+**Example 1: Morning triage**
 ```
 User: "/slack"
--> Shows channels you're in
--> Lists activity overview
+-> Queries real-time DB for unread messages
+-> Groups by DMs, mentions, channels
+-> Shows summary with counts
+-> Offers quick actions
 ```
 
-**Example 2: Send update to team**
+**Example 2: Search for a link**
 ```
-User: "/slack send #engineering 'Deployment complete'"
--> auth-keeper slack send #engineering "Deployment complete"
--> Returns message timestamp
+User: "find the sharepoint link from this morning"
+-> Searches real-time DB: SELECT * FROM messages WHERE text LIKE '%sharepoint%'
+-> If not found, falls back to archive DB
+-> Returns matching messages with context
 ```
 
-**Example 3: Read channel history**
+**Example 3: Check listener status**
 ```
-User: "/slack read #general 20"
--> auth-keeper slack read #general 20
--> Returns last 20 messages
+User: "/slack status"
+-> systemctl --user status slack-listener
+-> Shows message counts from DB
+-> Reports last received message time
 ```
 
 ## Error Handling
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `invalid_auth` | Token invalid | Check token in BWS |
-| `channel_not_found` | Wrong channel name/ID | Use `channels` to list |
-| `not_in_channel` | Bot not in channel | Invite bot to channel |
-| `missing_scope` | Token lacks permission | Add scope in Slack app settings |
+| `Disconnected from Socket Mode` | Network issue | Service auto-restarts (RestartSec=10) |
+| `Missing access token` | BWS not accessible | Check `~/.config/slack-listener/env` |
+| `No messages found` | DB empty or listener not running | Check `systemctl --user status slack-listener` |
+| `Secret not found in BWS` | Token not stored | Add token to BWS with correct key name |
 
-## Slackdump Integration
-
-For incremental archiving and backup, this skill uses [slackdump](https://github.com/rusq/slackdump).
-
-### Setup (one-time)
+## Logs
 
 ```bash
-# Import user token to slackdump (already configured)
-slackdump workspace list
+# Real-time listener logs
+journalctl --user -u slack-listener -f
 
-# Archive location
-$HOME/slack-archive/
-```
-
-### Sync Commands
-
-```bash
-# First run - full archive to SQLite database
-slackdump archive -o ~/slack-archive/
-
-# Subsequent runs - incremental (only new messages)
-slackdump resume ~/slack-archive/
-
-# Query the archive
-sqlite3 ~/slack-archive/slackdump.sqlite "SELECT * FROM MESSAGE ORDER BY ts DESC LIMIT 10;"
-```
-
-### Archive Structure
-
-The archive is a SQLite database with tables:
-- `MESSAGE` - All messages with timestamps
-- `CHANNEL` - Channel metadata
-- `S_USER` - User information
-- `FILE` - File attachments metadata
-
-### Cron Setup (optional)
-
-```bash
-# /etc/cron.d/slack-sync - every 5 minutes
-*/5 * * * * ubuntu slackdump resume ~/slack-archive/ 2>&1 | logger -t slackdump
+# Slackdump sync logs
+tail -f ~/logs/slackdump.log
 ```
