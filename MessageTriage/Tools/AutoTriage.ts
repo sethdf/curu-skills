@@ -482,6 +482,80 @@ ${summary}
   return report;
 }
 
+// Query cached results (instant - no API calls)
+async function queryCached(source: string, opts: { quiet: boolean; verbose: boolean }): Promise<string> {
+  log("Querying cached results...", opts);
+
+  // Check last run time
+  const lastRun = await $`sqlite3 ${config.cacheDb} "
+    SELECT started_at, messages_processed, status
+    FROM triage_runs
+    WHERE source = '${source}' AND status IN ('completed', 'dry-run')
+    ORDER BY started_at DESC
+    LIMIT 1;
+  "`.text();
+
+  // Get category summary
+  const summary = await $`sqlite3 -column -header ${config.cacheDb} "
+    SELECT
+      category,
+      COUNT(*) as count,
+      ROUND(AVG(confidence), 1) as avg_conf
+    FROM messages
+    WHERE source = '${source}'
+      AND category IS NOT NULL
+      AND exported_at > datetime('now', '-24 hours')
+    GROUP BY category
+    ORDER BY count DESC;
+  "`.text();
+
+  // Get action-required count
+  const actionRequired = await $`sqlite3 ${config.cacheDb} "
+    SELECT COUNT(*) FROM messages
+    WHERE source = '${source}'
+      AND category = 'Action-Required'
+      AND exported_at > datetime('now', '-24 hours');
+  "`.text();
+
+  // Get total count
+  const total = await $`sqlite3 ${config.cacheDb} "
+    SELECT COUNT(*) FROM messages
+    WHERE source = '${source}'
+      AND exported_at > datetime('now', '-24 hours');
+  "`.text();
+
+  // Get action-required details
+  const actionItems = await $`sqlite3 -column -header ${config.cacheDb} "
+    SELECT
+      substr(from_address, 1, 30) as 'from',
+      substr(subject, 1, 50) as subject,
+      confidence as conf
+    FROM messages
+    WHERE source = '${source}'
+      AND category = 'Action-Required'
+      AND exported_at > datetime('now', '-24 hours')
+    ORDER BY confidence DESC, timestamp DESC
+    LIMIT 10;
+  "`.text();
+
+  const report = `
+${colors.cyan}=== MessageTriage Cache Report ===${colors.reset}
+${colors.dim}Source: ${source} | Last 24 hours${colors.reset}
+${lastRun ? `Last run: ${lastRun.trim()}` : 'No recent runs'}
+
+${colors.yellow}Total Messages:${colors.reset} ${total.trim()}
+${colors.red}Action Required:${colors.reset} ${actionRequired.trim()}
+
+${colors.yellow}Category Breakdown:${colors.reset}
+${summary || 'No categorized messages found'}
+
+${actionRequired.trim() !== '0' ? `${colors.yellow}Action Required Items:${colors.reset}\n${actionItems}` : ''}
+`;
+
+  console.log(report);
+  return report;
+}
+
 // Send notification
 async function sendNotification(report: string, opts: { quiet: boolean; verbose: boolean }) {
   log("Sending notification...", opts, "debug");
