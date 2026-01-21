@@ -8,13 +8,10 @@ HOME=/home/ubuntu
 # Email: every 5 minutes (export from MS365 + AI categorization)
 */5 * * * * ubuntu /home/ubuntu/.nix-profile/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --fresh --quiet 2>&1 | logger -t autotriage-email
 
-# Slack: every minute (AI categorization of Socket Mode captured messages)
-# Socket Mode listener captures messages to unified cache in real-time
-# This cron just runs AI categorization on any pending uncategorized messages
-* * * * * ubuntu /home/ubuntu/.nix-profile/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source slack --categorize-pending --quiet 2>&1 | logger -t autotriage-slack
+# Slack: every 5 minutes (export from slackdump + AI categorization)
+*/5 * * * * ubuntu /home/ubuntu/.nix-profile/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source slack --fresh --quiet 2>&1 | logger -t autotriage-slack
 
 # Architecture:
 # - Email: Cron polls MS365 → exports to unified cache → AI categorizes
-# - Slack: Socket Mode captures real-time → writes to unified cache → Cron AI categorizes
+# - Slack: Cron reads slackdump.sqlite → exports to unified cache → AI categorizes
 # - All messages in unified cache: ~/.cache/message-triage/messages.sqlite
-# - Slack archive (slackdump.sqlite) is separate for historical search only
