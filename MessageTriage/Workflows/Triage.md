@@ -79,7 +79,7 @@ sqlite3 ~/slack-data/messages.db "
 
 ## Step 3: Present Results
 
-Format the cached results for the user:
+### Email Results
 
 ```markdown
 ## Email Triage Summary
@@ -102,22 +102,72 @@ Format the cached results for the user:
 ...
 ```
 
+### Slack Results (Priority Grouped)
+
+```markdown
+## Slack Triage Summary
+
+**Unread:** 23 messages need attention
+
+### Direct Messages (Priority 1)
+| From | Preview | Time |
+|------|---------|------|
+| @alice | "Hey, quick question about..." | 10:23 AM |
+| @bob | "Can you review this PR?" | 9:45 AM |
+
+### Group DMs (Priority 2)
+| Channel | From | Preview | Time |
+|---------|------|---------|------|
+| alice, bob, you | @alice | "Team sync notes..." | 9:30 AM |
+
+### Thread Replies (Priority 3)
+| Thread | From | Preview | Time |
+|--------|------|---------|------|
+| #dev: "API discussion" | @charlie | "I agree with..." | 9:15 AM |
+
+### Channels (Priority 4)
+| Channel | From | Preview | Time |
+|---------|------|---------|------|
+| #general | @dave | "Reminder: standup..." | 9:00 AM |
+```
+
 ## Step 4: Offer Actions (Optional)
 
 If user wants to act on results:
 
-### Archive by Category
+### Email Actions
+
+**Archive by Category:**
 ```bash
 # User: "Archive all SaaS notifications"
 # → Query cache for SaaS-Notifications IDs
 # → Bulk move to archive via MS365
 ```
 
-### Mark as Read
+**Mark as Read:**
 ```bash
 # User: "Mark all FYI-Internal as read"
 # → Query cache for FYI-Internal IDs
 # → Bulk update via MS365
+```
+
+### Slack Actions
+
+**Mark as Read (update triage_status):**
+```sql
+-- Mark all channel messages as read
+UPDATE messages
+SET triage_status = 'read'
+WHERE channel_type = 'channel'
+  AND triage_status = 'unread';
+```
+
+**Mark Specific Messages:**
+```sql
+-- Mark specific messages as actioned
+UPDATE messages
+SET triage_status = 'actioned'
+WHERE ts IN ('1234567890.123456', '1234567890.123457');
 ```
 
 ## Fresh Mode (On Request)
