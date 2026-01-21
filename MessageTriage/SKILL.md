@@ -92,6 +92,41 @@ User: "Export my unread emails for AI categorization"
 → Returns cache location and message count
 ```
 
+## Automated Triage (Cron/Agent)
+
+**Standalone CLI for headless execution - no Claude Code session required.**
+
+```bash
+# Quick test
+bun Tools/AutoTriage.ts --source email --limit 10 --dry-run --verbose
+
+# Cron-ready (every 4 hours)
+0 */4 * * * bun /path/to/Tools/AutoTriage.ts --source email --notify --quiet
+```
+
+### AutoTriage CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `--source <email\|slack>` | Message source (required) |
+| `--channel <name>` | Slack channel (for slack) |
+| `--limit <n>` | Max messages (default: 100) |
+| `--notify` | Send notification on completion |
+| `--dry-run` | Export/categorize only, no actions |
+| `--quiet` | Minimal output for cron |
+
+**Full documentation:** `Tools/AutoTriage.help.md`
+
+### Example: Setup Daily Email Triage
+
+```bash
+# Add to crontab
+crontab -e
+
+# Daily at 8am
+0 8 * * * /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --limit 200 --notify --quiet 2>&1 | logger -t autotriage
+```
+
 ## Dependencies
 
 **PAI Skills Used:**
