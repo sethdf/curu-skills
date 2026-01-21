@@ -64,6 +64,8 @@ function parseArgs(): {
   limit: number;
   notify: boolean;
   dryRun: boolean;
+  cached: boolean;
+  fresh: boolean;
   quiet: boolean;
   verbose: boolean;
   help: boolean;
@@ -75,6 +77,8 @@ function parseArgs(): {
     limit: 100,
     notify: false,
     dryRun: false,
+    cached: false,
+    fresh: false,
     quiet: false,
     verbose: false,
     help: false,
@@ -97,6 +101,12 @@ function parseArgs(): {
         break;
       case "--dry-run":
         result.dryRun = true;
+        break;
+      case "--cached":
+        result.cached = true;
+        break;
+      case "--fresh":
+        result.fresh = true;
         break;
       case "--quiet":
         result.quiet = true;
