@@ -35,6 +35,9 @@ auth-keeper ms365 "Get-MgSite -All | Select-Object DisplayName, WebUrl, Id"
 # Search SharePoint site
 auth-keeper ms365 "\$siteId = 'buxtonco.sharepoint.com:/sites/Buxton-IT'; \$drives = Get-MgSiteDrive -SiteId \$siteId; \$driveId = \$drives[0].Id; Search-MgDriveRoot -DriveId \$driveId -Q 'report' | Select-Object Name, WebUrl, Id"
 
+# Resolve sharing URL (from Slack/Teams/email) - MOST EFFICIENT, no search needed
+auth-keeper ms365 '$shareUrl = "<PASTE_URL>"; $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($shareUrl)); $enc = "u%21" + $b64.TrimEnd("=").Replace("/","_").Replace("+","-"); Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/shares/$enc/driveItem" | ConvertTo-Json'
+
 # Download file to local
 bun ~/.claude/skills/MS365Files/Tools/Download.ts --item-id <id> --output ~/WORK/scratch/
 ```
@@ -47,6 +50,7 @@ Files download to `~/WORK/scratch/` by default. Override with `--output` flag.
 
 | Workflow | Trigger | File |
 |----------|---------|------|
+| **ResolveShareLink** | URL pasted, sharing link, "resolve this link" | `Workflows/ResolveShareLink.md` |
 | **Search** | "find file", "search OneDrive", "look for document" | `Workflows/Search.md` |
 | **Download** | "download file", "get file locally", "retrieve document" | `Workflows/Download.md` |
 | **List** | "list files", "show folder", "browse OneDrive" | `Workflows/List.md` |
@@ -54,7 +58,16 @@ Files download to `~/WORK/scratch/` by default. Override with `--output` flag.
 
 ## Examples
 
-**Example 1: Search for a document**
+**Example 1: Resolve a shared link (MOST EFFICIENT)**
+```
+User: [pastes Slack/Teams/email link] "https://buxtonco.sharepoint.com/:x:/s/Buxton-IT/IQBpPe..."
+--> Invokes ResolveShareLink workflow
+--> Base64 encodes URL with u%21 prefix
+--> Calls Graph /shares endpoint
+--> Returns file name, ID, path, download URL instantly - NO SEARCH NEEDED
+```
+
+**Example 2: Search for a document**
 ```
 User: "Find the quarterly budget spreadsheet in OneDrive"
 --> Invokes Search workflow
@@ -62,7 +75,7 @@ User: "Find the quarterly budget spreadsheet in OneDrive"
 --> Returns matching files with names, paths, and IDs
 ```
 
-**Example 2: Download a file**
+**Example 3: Download a file**
 ```
 User: "Download the Q4 report from OneDrive"
 --> Invokes Search workflow to find file
@@ -71,7 +84,7 @@ User: "Download the Q4 report from OneDrive"
 --> Reports: "Downloaded Q4_Report.xlsx to ~/WORK/scratch/Q4_Report.xlsx"
 ```
 
-**Example 3: Browse SharePoint**
+**Example 4: Browse SharePoint**
 ```
 User: "Show me what's in the IT team SharePoint"
 --> Invokes Sites workflow to find IT site
