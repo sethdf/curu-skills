@@ -54,7 +54,7 @@ const config = {
   cacheDir: process.env.TRIAGE_CACHE?.replace("/messages.sqlite", "") || join(homedir(), ".cache/message-triage"),
   cacheDb: process.env.TRIAGE_CACHE || join(homedir(), ".cache/message-triage/messages.sqlite"),
   notifyUrl: process.env.NOTIFY_URL || "http://localhost:8888/notify",
-  inferenceScript: join(homedir(), ".claude/tools/Inference.ts"),
+  inferenceScript: join(homedir(), ".claude/skills/CORE/Tools/Inference.ts"),
 };
 
 // Parse CLI arguments
