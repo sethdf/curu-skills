@@ -422,16 +422,21 @@ ${messageList}`;
   // Call PAI Inference with system and user prompts
   log(`Categorizing ${messages.length} messages...`, opts, "debug");
 
-  // Write prompts to temp files to avoid shell escaping issues
-  const sysPromptFile = `/tmp/autotriage-sys-${runId}.txt`;
-  const usrPromptFile = `/tmp/autotriage-usr-${runId}.txt`;
-  await Bun.write(sysPromptFile, systemPrompt);
-  await Bun.write(usrPromptFile, userPrompt);
+  // Import and call Inference directly as a module
+  const { inference } = await import(config.inferenceScript);
+  const result = await inference({
+    systemPrompt,
+    userPrompt,
+    level: 'standard',
+    expectJson: false,
+  });
 
-  const inferenceResult = await $`bun ${config.inferenceScript} --level standard "$(cat ${sysPromptFile})" "$(cat ${usrPromptFile})"`.text();
+  if (!result.success) {
+    log(`Inference failed: ${result.error}`, opts, "error");
+    return 0;
+  }
 
-  // Clean up temp files
-  await $`rm -f ${sysPromptFile} ${usrPromptFile}`.quiet();
+  const inferenceResult = result.output;
 
   // Parse JSON from response
   let results: any[];
