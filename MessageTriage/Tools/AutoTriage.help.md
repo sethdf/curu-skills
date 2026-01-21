@@ -87,20 +87,37 @@ bun AutoTriage.ts --source email --notify --quiet
 
 ## Cron Setup
 
-### Every 4 Hours
-```cron
-0 */4 * * * ubuntu /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --notify --quiet 2>&1 | logger -t autotriage
+### Recommended: Frequent Background Updates
+```bash
+# Install the provided cron file
+sudo cp autotriage.cron /etc/cron.d/autotriage
+sudo chmod 644 /etc/cron.d/autotriage
 ```
 
-### Daily at 8 AM
+This sets up:
+- **Email:** Every 5 minutes (`*/5 * * * *`)
+- **Slack:** Every 60 seconds (`* * * * *`)
+
+With these running, interactive `--cached` queries are always instant.
+
+### Email Every 5 Minutes
 ```cron
-0 8 * * * ubuntu /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --limit 200 --notify --quiet
+*/5 * * * * ubuntu /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --quiet 2>&1 | logger -t autotriage-email
 ```
 
-### Weekdays at 9 AM and 2 PM
+### Slack Every 60 Seconds
 ```cron
-0 9,14 * * 1-5 ubuntu /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --notify --quiet
+* * * * * ubuntu /usr/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source slack --channel general --quiet 2>&1 | logger -t autotriage-slack
 ```
+
+### Alternative Schedules
+
+| Schedule | Expression | Use Case |
+|----------|------------|----------|
+| Every 5 min | `*/5 * * * *` | Standard email (recommended) |
+| Every minute | `* * * * *` | Real-time Slack |
+| Every 15 min | `*/15 * * * *` | Light email volume |
+| Daily 8 AM | `0 8 * * *` | Morning summary only |
 
 ## Systemd Timer (Alternative)
 
@@ -224,7 +241,7 @@ slackdump archive -o ~/slack-archive/
 ### PAI Inference not available
 ```bash
 # Verify inference script exists
-ls -la ~/.claude/tools/Inference.ts
+ls -la ~/.claude/skills/CORE/Tools/Inference.ts
 ```
 
 ## Exit Codes
