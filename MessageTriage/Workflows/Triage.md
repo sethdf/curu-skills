@@ -27,26 +27,55 @@ bun Tools/AutoTriage.ts --source email --fresh --limit 50
 
 ## Step 1: Detect Source
 
-| User Says | Source |
-|-----------|--------|
-| "inbox", "email", "ms365", "outlook" | `email` |
-| "#channel", "slack", "channel" | `slack` |
-| Default | `email` |
+| User Says | Source | Data Location |
+|-----------|--------|---------------|
+| "inbox", "email", "ms365", "outlook" | `email` | `~/.cache/message-triage/messages.sqlite` |
+| "#channel", "slack", "channel" | `slack` | `~/slack-data/messages.db` (real-time) |
+| Default | `email` | |
 
-## Step 2: Query Cache (Default)
+## Step 2: Query Cache
+
+### For Email (Cached via Cron)
 
 ```bash
-# Instant cached results
+# Instant cached results (5-min cron keeps this fresh)
 bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts \
   --source email \
   --cached
 ```
 
-Output includes:
+### For Slack (Real-time DB)
+
+```sql
+-- Query real-time DB directly (Socket Mode keeps this current)
+sqlite3 ~/slack-data/messages.db "
+  SELECT
+    channel_type,
+    channel_name,
+    user_name,
+    substr(text, 1, 80) AS preview,
+    datetime(timestamp, 'unixepoch') AS time,
+    triage_status
+  FROM messages
+  WHERE triage_status = 'unread'
+  ORDER BY
+    CASE channel_type
+      WHEN 'im' THEN 1       -- DMs first
+      WHEN 'mpim' THEN 2     -- Group DMs
+      WHEN 'thread' THEN 3   -- Thread replies
+      ELSE 4                 -- Channels last
+    END,
+    timestamp DESC
+  LIMIT 50;
+"
+```
+
+**Output includes:**
 - Total messages (last 24 hours)
 - Action-required count
 - Category breakdown
 - Top action items with confidence scores
+- For Slack: Priority grouping (DMs → Group DMs → Threads → Channels)
 
 ## Step 3: Present Results
 
@@ -106,16 +135,29 @@ bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTri
 
 This takes 30-60 seconds depending on message count.
 
-## Cron Background Jobs
+## Background Data Collection
 
-These run automatically to keep cache fresh:
+| Source | Method | Frequency | Service |
+|--------|--------|-----------|---------|
+| Email | Cron polling | Every 5 min | `autotriage` cron |
+| Slack | Socket Mode | Real-time | `slack-socket-listener` systemd |
+
+### Email (Cron)
 
 ```cron
-# Email: every 5 minutes
+# Email: every 5 minutes (keeps cache fresh)
 */5 * * * * bun /path/to/AutoTriage.ts --source email --quiet
+```
 
-# Slack: every 60 seconds
-* * * * * bun /path/to/AutoTriage.ts --source slack --channel general --quiet
+### Slack (Real-time)
+
+Slack uses Socket Mode via systemd - no cron needed:
+
+```bash
+# Check status
+systemctl --user status slack-socket-listener
+
+# Messages flow: Slack API → WebSocket → ~/slack-data/messages.db
 ```
 
 With these running, interactive queries are always instant.
