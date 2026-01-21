@@ -100,31 +100,96 @@ CREATE INDEX idx_category ON messages(category);
 
 ## Slack Adapter
 
+### Architecture: Dual Database
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Slack Data Sources                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────┐         ┌──────────────────────────┐  │
+│  │  Socket Mode     │         │     Slackdump Backup     │  │
+│  │  (Real-time)     │         │     (Hourly cron)        │  │
+│  └────────┬─────────┘         └────────────┬─────────────┘  │
+│           │                                 │                │
+│           ▼                                 ▼                │
+│  ┌──────────────────┐         ┌──────────────────────────┐  │
+│  │ ~/slack-data/    │         │ ~/slack-archive/         │  │
+│  │ messages.db      │         │ slackdump.sqlite         │  │
+│  │ (PRIMARY)        │         │ (HISTORICAL ONLY)        │  │
+│  └──────────────────┘         └──────────────────────────┘  │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Configuration
 
 ```bash
-# Uses slackdump for export
-# Archive location
-SLACK_ARCHIVE="$HOME/slack-archive/slackdump.sqlite"
+# Primary: Real-time database (Socket Mode)
+SLACK_REALTIME_DB="$HOME/slack-data/messages.db"
+
+# Secondary: Archive database (historical searches only)
+SLACK_ARCHIVE_DB="$HOME/slack-archive/slackdump.sqlite"
 ```
 
-### Slackdump Commands
+### Data Source Priority
 
-```bash
-# List workspaces
-slackdump workspace list
+| Operation | Primary Source | Fallback |
+|-----------|----------------|----------|
+| Triage (recent) | Real-time DB | - |
+| Search (recent) | Real-time DB | Archive DB |
+| Search (historical) | Archive DB | - |
+| Thread context | Real-time DB | Archive DB |
 
-# Incremental sync
-slackdump resume ~/slack-archive/
-
-# Full archive (first time)
-slackdump archive -o ~/slack-archive/
-```
-
-### SQLite Queries
+### Real-time DB Queries (Primary)
 
 ```sql
--- Get recent messages from channel
+-- Get unread messages by priority: DMs > Group DMs > Threads > Channels
+SELECT
+  m.ts AS id,
+  'slack' AS source,
+  datetime(m.timestamp, 'unixepoch') AS timestamp,
+  m.user_name AS from_name,
+  m.user_id AS from_address,
+  m.channel_name AS subject,
+  m.text AS body,
+  substr(m.text, 1, 200) AS body_preview,
+  COALESCE(m.thread_ts, m.ts) AS thread_id,
+  m.channel_type,
+  m.triage_status
+FROM messages m
+WHERE m.triage_status = 'unread'
+ORDER BY
+  CASE m.channel_type
+    WHEN 'im' THEN 1
+    WHEN 'mpim' THEN 2
+    WHEN 'thread' THEN 3
+    ELSE 4
+  END,
+  m.timestamp DESC
+LIMIT 100;
+
+-- Get thread messages from real-time DB
+SELECT
+  m.ts AS id,
+  datetime(m.timestamp, 'unixepoch') AS timestamp,
+  m.user_name AS from_name,
+  m.text AS body
+FROM messages m
+WHERE m.thread_ts = '$parent_ts'
+   OR m.ts = '$parent_ts'
+ORDER BY m.timestamp;
+
+-- Mark messages as read
+UPDATE messages
+SET triage_status = 'read'
+WHERE ts IN ($message_ids);
+```
+
+### Archive DB Queries (Historical Only)
+
+```sql
+-- Search historical messages (fallback)
 SELECT
   m.ts AS id,
   'slack' AS source,
@@ -138,22 +203,17 @@ SELECT
 FROM MESSAGE m
 LEFT JOIN S_USER u ON m.user = u.id
 LEFT JOIN CHANNEL c ON m.channel_id = c.id
-WHERE c.name = 'general'
-  AND datetime(CAST(m.ts AS REAL), 'unixepoch') > datetime('now', '-7 days')
+WHERE m.text LIKE '%search_term%'
+  AND datetime(CAST(m.ts AS REAL), 'unixepoch') < datetime('now', '-24 hours')
 ORDER BY m.ts DESC
 LIMIT 100;
+```
 
--- Get thread messages
-SELECT
-  m.ts AS id,
-  datetime(CAST(m.ts AS REAL), 'unixepoch') AS timestamp,
-  u.real_name AS from_name,
-  m.text AS body
-FROM MESSAGE m
-LEFT JOIN S_USER u ON m.user = u.id
-WHERE m.thread_ts = '$parent_ts'
-   OR m.ts = '$parent_ts'
-ORDER BY m.ts;
+### Slackdump Backup (Cron)
+
+```bash
+# Hourly backup to archive (runs via cron)
+0 * * * * slackdump resume ~/slack-archive/
 ```
 
 ### Field Mapping
@@ -161,12 +221,14 @@ ORDER BY m.ts;
 | Slack Field | Common Format |
 |-------------|---------------|
 | `ts` | `id` |
-| `user` | `from.address` |
-| `real_name` (from S_USER) | `from.name` |
-| `channel.name` | `subject` (as channel name) |
+| `user_id` / `user` | `from.address` |
+| `user_name` / `real_name` | `from.name` |
+| `channel_name` | `subject` (as channel name) |
 | `text` | `body` |
 | `thread_ts` or `ts` | `thread_id` |
-| `ts` (converted) | `timestamp` |
+| `timestamp` / `ts` | `timestamp` |
+| `channel_type` | `metadata.channel_type` |
+| `triage_status` | `metadata.triage_status` |
 
 ## Future Adapters
 
