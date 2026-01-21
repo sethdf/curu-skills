@@ -370,14 +370,21 @@ async function exportSlack(channel: string, limit: number, runId: string, opts: 
 // Categorize messages using PAI Inference
 const BATCH_SIZE = 15;  // Process 15 messages at a time to avoid timeouts
 
-async function categorizeMessages(runId: string, opts: { quiet: boolean; verbose: boolean }): Promise<number> {
+async function categorizeMessages(runId: string, opts: { quiet: boolean; verbose: boolean }, source?: string): Promise<number> {
   log("Running AI categorization...", opts);
 
-  // Get uncategorized messages from this run
+  // Get uncategorized messages from this run (or by source if no runId)
+  const whereClause = runId
+    ? `run_id = '${runId}' AND category IS NULL`
+    : source
+      ? `source = '${source}' AND category IS NULL`
+      : `category IS NULL`;
+
   const messagesRaw = await $`sqlite3 -json ${config.cacheDb} "
-    SELECT id, source, from_name, from_address, subject, body_preview, thread_id
+    SELECT id, source, from_name, from_address, subject, body_preview, thread_id,
+           channel_name, channel_type, context_messages
     FROM messages
-    WHERE run_id = '${runId}' AND category IS NULL;
+    WHERE ${whereClause};
   "`.text();
 
   let messages: any[];
@@ -393,17 +400,19 @@ async function categorizeMessages(runId: string, opts: { quiet: boolean; verbose
     return 0;
   }
 
-  // Category definitions
+  // Category definitions - unified for email and Slack
   const categories = `
-- Action-Required: Needs direct response or action from user
-- Colleagues: Direct messages from known team members
+- Action-Required: Needs direct response or action from user (questions, requests, approvals)
+- Colleagues: Direct messages from team members (not automated)
 - Support-Request: Customer or internal support requests
-- SaaS-Notifications: Automated alerts from SaaS tools (monitoring, CI/CD, security)
+- Discussion: Ongoing conversations, brainstorming, general chat
+- SaaS-Notifications: Automated alerts from SaaS tools (monitoring, CI/CD, security, bots)
 - AWS-Cloud: Cloud infrastructure notifications
-- FYI-Internal: Internal notifications, no action needed
-- Vendor-Sales: Sales and marketing from external vendors`;
+- FYI-Internal: Internal notifications, announcements, no action needed
+- Vendor-Sales: Sales and marketing from external vendors
+- Noise: Low-value automated messages, join/leave notifications, reactions`;
 
-  const systemPrompt = `You are an email categorization assistant. Categorize emails into these categories:
+  const systemPrompt = `You are a message categorization assistant. Categorize messages (email or Slack) into these categories:
 ${categories}
 
 Return ONLY a valid JSON array with this structure:
@@ -412,7 +421,11 @@ Return ONLY a valid JSON array with this structure:
 Rules:
 - confidence is 1-10 (10 = very certain)
 - reasoning should be 5-15 words
-- Use exact category names from the list above`;
+- Use exact category names from the list above
+- For Slack: consider context messages to understand the conversation
+- DMs asking questions = Action-Required
+- Thread replies that are just acknowledgments = FYI-Internal
+- Bot messages or automated notifications = SaaS-Notifications or Noise`;
 
   // Import inference module once
   const { inference } = await import(config.inferenceScript);
@@ -431,15 +444,31 @@ Rules:
     log(`Processing batch ${batchNum + 1}/${totalBatches} (${batch.length} messages)...`, opts, "debug");
 
     const messageList = batch
-      .map(
-        (m: any, i: number) => `
+      .map((m: any, i: number) => {
+        let formatted = `
 ### Message ${i + 1}
 **ID:** ${m.id}
-**From:** ${m.from_name} <${m.from_address}>
+**Source:** ${m.source}
+**From:** ${m.from_name}${m.from_address ? ` <${m.from_address}>` : ""}
 **Subject:** ${m.subject}
-**Preview:** ${m.body_preview?.substring(0, 200) || ""}
-`
-      )
+**Content:** ${m.body_preview?.substring(0, 200) || ""}`;
+
+        // Add Slack-specific context
+        if (m.source === "slack" && m.context_messages) {
+          try {
+            const ctx = JSON.parse(m.context_messages);
+            if (ctx.length > 0) {
+              formatted += `\n**Channel:** ${m.channel_name} (${m.channel_type})`;
+              formatted += `\n**Context (previous messages):**`;
+              for (const c of ctx.slice(-3)) {  // Last 3 context messages
+                formatted += `\n  - ${c.from}: ${c.text.substring(0, 100)}`;
+              }
+            }
+          } catch {}
+        }
+
+        return formatted;
+      })
       .join("\n");
 
     const userPrompt = `Categorize these messages:\n\n${messageList}`;
