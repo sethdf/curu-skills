@@ -10,7 +10,7 @@
 
 import { SocketModeClient } from "@slack/socket-mode";
 import { WebClient } from "@slack/web-api";
-import Database from "better-sqlite3";
+import { Database } from "bun:sqlite";
 import { homedir } from "os";
 import { join } from "path";
 import { execSync } from "child_process";
@@ -41,11 +41,11 @@ function getSecret(secretId: string): string {
 }
 
 // Initialize database
-function initDatabase(): Database.Database {
-  const db = new Database(config.dbPath);
+function initDatabase(): Database {
+  const db = new Database(config.dbPath, { create: true });
 
   // Ensure tables exist
-  db.exec(`
+  db.run(`
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY,
       channel_id TEXT NOT NULL,
@@ -61,29 +61,34 @@ function initDatabase(): Database.Database {
       triage_priority TEXT,
       triage_notes TEXT,
       raw_event TEXT
-    );
+    )
+  `);
 
+  db.run(`
     CREATE TABLE IF NOT EXISTS channels (
       id TEXT PRIMARY KEY,
       name TEXT,
       type TEXT,
       is_member INTEGER,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+    )
+  `);
 
+  db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       name TEXT,
       real_name TEXT,
       email TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(ts DESC);
-    CREATE INDEX IF NOT EXISTS idx_messages_triage ON messages(triage_status);
-    CREATE INDEX IF NOT EXISTS idx_messages_received ON messages(received_at DESC);
+    )
   `);
+
+  // Create indexes (ignore if exists)
+  try { db.run("CREATE INDEX idx_messages_channel ON messages(channel_id)"); } catch {}
+  try { db.run("CREATE INDEX idx_messages_ts ON messages(ts DESC)"); } catch {}
+  try { db.run("CREATE INDEX idx_messages_triage ON messages(triage_status)"); } catch {}
+  try { db.run("CREATE INDEX idx_messages_received ON messages(received_at DESC)"); } catch {}
 
   return db;
 }
@@ -95,7 +100,7 @@ const userCache = new Map<string, { name: string; realName: string }>();
 // Get channel info with caching
 async function getChannelInfo(
   client: WebClient,
-  db: Database.Database,
+  db: Database,
   channelId: string
 ): Promise<{ name: string; type: string }> {
   // Check memory cache
@@ -104,9 +109,9 @@ async function getChannelInfo(
   }
 
   // Check database
-  const cached = db.prepare("SELECT name, type FROM channels WHERE id = ?").get(channelId) as
+  const cached = db.query("SELECT name, type FROM channels WHERE id = ?").get(channelId) as
     | { name: string; type: string }
-    | undefined;
+    | null;
   if (cached) {
     channelCache.set(channelId, cached);
     return cached;
@@ -127,10 +132,10 @@ async function getChannelInfo(
 
     // Cache it
     channelCache.set(channelId, info);
-    db.prepare(`
-      INSERT OR REPLACE INTO channels (id, name, type, is_member, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(channelId, name, type, 1);
+    db.run(
+      "INSERT OR REPLACE INTO channels (id, name, type, is_member, updated_at) VALUES (?, ?, ?, ?, datetime('now'))",
+      [channelId, name, type, 1]
+    );
 
     return info;
   } catch (error) {
@@ -142,7 +147,7 @@ async function getChannelInfo(
 // Get user info with caching
 async function getUserInfo(
   client: WebClient,
-  db: Database.Database,
+  db: Database,
   userId: string
 ): Promise<{ name: string; realName: string }> {
   // Check memory cache
@@ -151,9 +156,9 @@ async function getUserInfo(
   }
 
   // Check database
-  const cached = db.prepare("SELECT name, real_name FROM users WHERE id = ?").get(userId) as
+  const cached = db.query("SELECT name, real_name FROM users WHERE id = ?").get(userId) as
     | { name: string; real_name: string }
-    | undefined;
+    | null;
   if (cached) {
     const info = { name: cached.name, realName: cached.real_name };
     userCache.set(userId, info);
@@ -171,10 +176,10 @@ async function getUserInfo(
 
     // Cache it
     userCache.set(userId, info);
-    db.prepare(`
-      INSERT OR REPLACE INTO users (id, name, real_name, email, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(userId, name, realName, user.profile?.email || null);
+    db.run(
+      "INSERT OR REPLACE INTO users (id, name, real_name, email, updated_at) VALUES (?, ?, ?, ?, datetime('now'))",
+      [userId, name, realName, user.profile?.email || null]
+    );
 
     return info;
   } catch (error) {
@@ -213,6 +218,14 @@ async function main() {
   const socketClient = new SocketModeClient({ appToken });
   const webClient = new WebClient(userToken);
 
+  // Prepared statement for message insertion
+  const insertMessage = db.query(`
+    INSERT OR IGNORE INTO messages (
+      id, channel_id, channel_name, channel_type, user_id, user_name,
+      text, ts, thread_ts, received_at, triage_status, raw_event
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'unread', ?)
+  `);
+
   // Message counter for logging
   let messageCount = 0;
 
@@ -248,12 +261,7 @@ async function main() {
       const messageId = `${channelId}-${ts}`;
 
       // Store in database
-      db.prepare(`
-        INSERT OR IGNORE INTO messages (
-          id, channel_id, channel_name, channel_type, user_id, user_name,
-          text, ts, thread_ts, received_at, triage_status, raw_event
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'unread', ?)
-      `).run(
+      insertMessage.run(
         messageId,
         channelId,
         channelInfo.name,
