@@ -45,17 +45,24 @@ Universal message triage system with AI-powered categorization. Handles messages
 ## Quick Reference
 
 **Supported Sources:**
-- **Email (MS365):** Via auth-keeper ms365 Graph API
-- **Slack:** Via slackdump SQLite archive
+- **Email (MS365):** Via auth-keeper ms365 Graph API (5-min polling)
+- **Slack:** Via Socket Mode real-time WebSocket (instant)
 - **Extensible:** Adapter pattern for future sources
 
+**Data Architecture:**
+```
+Email:  auth-keeper → 5-min cron → ~/.cache/message-triage/messages.sqlite
+Slack:  Socket Mode → real-time  → ~/slack-data/messages.db (primary)
+        Slackdump   → hourly     → ~/slack-archive/slackdump.sqlite (historical)
+```
+
 **Thread Context Awareness:**
-- Email: Analyzes full reply chains (In-Reply-To, References headers)
-- Slack: Includes parent messages and thread replies
+- Email: Analyzes full reply chains (ConversationId, In-Reply-To headers)
+- Slack: Includes parent messages and thread replies (thread_ts)
 - Categorization considers conversational flow, not just individual messages
 
 **AI Categorization:**
-- Uses PAI Inference tool: `bun ~/.claude/tools/Inference.ts standard`
+- Uses PAI Inference tool: `bun ~/.claude/skills/CORE/Tools/Inference.ts standard`
 - Returns: Category, Confidence (1-10), Reasoning
 - Configurable categories per source
 
@@ -74,13 +81,14 @@ User: "Triage my inbox"
 → Returns categorized summary for bulk action approval
 ```
 
-**Example 2: Categorize Slack channel**
+**Example 2: Triage Slack messages**
 ```
-User: "Categorize messages in #support from last week"
+User: "Triage my Slack messages"
 → Invokes Triage workflow with Slack source
-→ Uses slackdump archive with thread context
+→ Queries real-time DB (~/slack-data/messages.db)
+→ Prioritizes: DMs → Group DMs → Threads → Channels
 → AI classifies by urgency, topic, action-needed
-→ Returns actionable summary
+→ Returns actionable summary grouped by priority
 ```
 
 **Example 3: Export for review**
