@@ -321,12 +321,8 @@ async function exportSlack(channel: string | undefined, limit: number, runId: st
     return 0;
   }
 
-  // First sync latest from slackdump
-  try {
-    await $`slackdump resume ${config.slackArchive.replace("/slackdump.sqlite", "")}`.quiet();
-  } catch (e) {
-    log(`Slackdump sync skipped (may already be running)`, opts, "debug");
-  }
+  // Slackdump sync is handled by separate cron job - skip here to avoid blocking
+  // The hourly slackdump cron keeps the archive fresh
 
   // Export from slackdump - ALL conversations including DMs
   // Channel types: C=public channel, G=private/mpim, D=DM
