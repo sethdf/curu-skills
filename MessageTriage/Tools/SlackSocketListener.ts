@@ -2,8 +2,13 @@
 /**
  * SlackSocketListener.ts - Real-time Slack message capture via Socket Mode
  *
- * Uses Socket Mode to receive messages in real-time and stores them in SQLite
- * for triage. Run as a systemd service for continuous capture.
+ * Captures messages in real-time and stores them in the unified message-triage cache
+ * with surrounding context for AI categorization.
+ *
+ * Context Strategy:
+ * - For channel messages: fetch last 5 messages in channel for context
+ * - For thread replies: fetch parent message + sibling replies
+ * - For DMs: fetch last 3 messages in conversation
  *
  * Credentials: Retrieved from BWS via auth-keeper
  */
@@ -11,17 +16,24 @@
 import { SocketModeClient } from "@slack/socket-mode";
 import { WebClient } from "@slack/web-api";
 import { Database } from "bun:sqlite";
+import { existsSync, mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { execSync } from "child_process";
 
-// Configuration
+// Configuration - use unified cache
 const config = {
-  dbPath: join(homedir(), "slack-data/messages.db"),
+  cacheDir: join(homedir(), ".cache/message-triage"),
+  cacheDb: join(homedir(), ".cache/message-triage/messages.sqlite"),
   authKeeperPath: join(homedir(), "repos/github.com/sethdf/imladris/scripts/auth-keeper.sh"),
   bwsSecrets: {
     appToken: "c577cb73-05c2-424b-9678-b3d901301484",
     userToken: "060ad408-e093-41dc-bb07-b3d401792837",
+  },
+  contextSize: {
+    channel: 5,  // Last 5 messages for channel context
+    thread: 10,  // Parent + up to 9 replies for thread context
+    dm: 3,       // Last 3 messages for DM context
   },
 };
 
@@ -40,42 +52,61 @@ function getSecret(secretId: string): string {
   }
 }
 
-// Initialize database
+// Initialize unified cache database
 function initDatabase(): Database {
-  const db = new Database(config.dbPath, { create: true });
+  if (!existsSync(config.cacheDir)) {
+    mkdirSync(config.cacheDir, { recursive: true });
+  }
 
-  // Ensure tables exist
+  const db = new Database(config.cacheDb, { create: true });
+
+  // Ensure schema matches AutoTriage unified schema
   db.run(`
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY,
-      channel_id TEXT NOT NULL,
+      source TEXT NOT NULL,
+      timestamp TEXT,
+      from_name TEXT,
+      from_address TEXT,
+      subject TEXT,
+      body TEXT,
+      body_preview TEXT,
+      thread_id TEXT,
+      is_read INTEGER DEFAULT 0,
+      category TEXT,
+      confidence INTEGER,
+      reasoning TEXT,
+      exported_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      run_id TEXT,
+      channel_id TEXT,
       channel_name TEXT,
       channel_type TEXT,
       user_id TEXT,
-      user_name TEXT,
-      text TEXT,
-      ts TEXT NOT NULL,
-      thread_ts TEXT,
-      received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       triage_status TEXT DEFAULT 'unread',
-      triage_priority TEXT,
-      triage_notes TEXT,
+      context_messages TEXT,
       raw_event TEXT
     )
   `);
 
+  // Create indexes (ignore if exists)
+  try { db.run("CREATE INDEX idx_messages_source ON messages(source)"); } catch {}
+  try { db.run("CREATE INDEX idx_messages_category ON messages(category)"); } catch {}
+  try { db.run("CREATE INDEX idx_messages_channel ON messages(channel_id)"); } catch {}
+  try { db.run("CREATE INDEX idx_messages_triage_status ON messages(triage_status)"); } catch {}
+
+  // Channels cache for name lookups
   db.run(`
-    CREATE TABLE IF NOT EXISTS channels (
+    CREATE TABLE IF NOT EXISTS slack_channels (
       id TEXT PRIMARY KEY,
       name TEXT,
       type TEXT,
-      is_member INTEGER,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
+  // Users cache for name lookups
   db.run(`
-    CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS slack_users (
       id TEXT PRIMARY KEY,
       name TEXT,
       real_name TEXT,
@@ -83,12 +114,6 @@ function initDatabase(): Database {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
-  // Create indexes (ignore if exists)
-  try { db.run("CREATE INDEX idx_messages_channel ON messages(channel_id)"); } catch {}
-  try { db.run("CREATE INDEX idx_messages_ts ON messages(ts DESC)"); } catch {}
-  try { db.run("CREATE INDEX idx_messages_triage ON messages(triage_status)"); } catch {}
-  try { db.run("CREATE INDEX idx_messages_received ON messages(received_at DESC)"); } catch {}
 
   return db;
 }
@@ -103,13 +128,11 @@ async function getChannelInfo(
   db: Database,
   channelId: string
 ): Promise<{ name: string; type: string }> {
-  // Check memory cache
   if (channelCache.has(channelId)) {
     return channelCache.get(channelId)!;
   }
 
-  // Check database
-  const cached = db.query("SELECT name, type FROM channels WHERE id = ?").get(channelId) as
+  const cached = db.query("SELECT name, type FROM slack_channels WHERE id = ?").get(channelId) as
     | { name: string; type: string }
     | null;
   if (cached) {
@@ -117,7 +140,6 @@ async function getChannelInfo(
     return cached;
   }
 
-  // Fetch from API
   try {
     const result = await client.conversations.info({ channel: channelId });
     const channel = result.channel as any;
@@ -130,11 +152,10 @@ async function getChannelInfo(
     const name = channel.name || channel.user || channelId;
     const info = { name, type };
 
-    // Cache it
     channelCache.set(channelId, info);
     db.run(
-      "INSERT OR REPLACE INTO channels (id, name, type, is_member, updated_at) VALUES (?, ?, ?, ?, datetime('now'))",
-      [channelId, name, type, 1]
+      "INSERT OR REPLACE INTO slack_channels (id, name, type, updated_at) VALUES (?, ?, ?, datetime('now'))",
+      [channelId, name, type]
     );
 
     return info;
@@ -150,13 +171,11 @@ async function getUserInfo(
   db: Database,
   userId: string
 ): Promise<{ name: string; realName: string }> {
-  // Check memory cache
   if (userCache.has(userId)) {
     return userCache.get(userId)!;
   }
 
-  // Check database
-  const cached = db.query("SELECT name, real_name FROM users WHERE id = ?").get(userId) as
+  const cached = db.query("SELECT name, real_name FROM slack_users WHERE id = ?").get(userId) as
     | { name: string; real_name: string }
     | null;
   if (cached) {
@@ -165,7 +184,6 @@ async function getUserInfo(
     return info;
   }
 
-  // Fetch from API
   try {
     const result = await client.users.info({ user: userId });
     const user = result.user as any;
@@ -174,10 +192,9 @@ async function getUserInfo(
     const realName = user.real_name || user.profile?.real_name || name;
     const info = { name, realName };
 
-    // Cache it
     userCache.set(userId, info);
     db.run(
-      "INSERT OR REPLACE INTO users (id, name, real_name, email, updated_at) VALUES (?, ?, ?, ?, datetime('now'))",
+      "INSERT OR REPLACE INTO slack_users (id, name, real_name, email, updated_at) VALUES (?, ?, ?, ?, datetime('now'))",
       [userId, name, realName, user.profile?.email || null]
     );
 
@@ -188,6 +205,69 @@ async function getUserInfo(
   }
 }
 
+// Fetch context messages for AI categorization
+async function fetchContext(
+  client: WebClient,
+  db: Database,
+  channelId: string,
+  channelType: string,
+  threadTs?: string,
+  currentTs?: string
+): Promise<Array<{ from: string; text: string; ts: string }>> {
+  const context: Array<{ from: string; text: string; ts: string }> = [];
+
+  try {
+    if (threadTs) {
+      // Thread context: get parent + replies
+      const replies = await client.conversations.replies({
+        channel: channelId,
+        ts: threadTs,
+        limit: config.contextSize.thread,
+      });
+
+      if (replies.messages) {
+        for (const msg of replies.messages) {
+          if (msg.ts === currentTs) continue; // Skip the current message
+          const userInfo = msg.user ? await getUserInfo(client, db, msg.user) : { realName: "Unknown" };
+          context.push({
+            from: userInfo.realName,
+            text: (msg.text || "").substring(0, 200),
+            ts: msg.ts || "",
+          });
+        }
+      }
+    } else {
+      // Channel context: get recent messages
+      const limit = channelType === "im" || channelType === "mpim"
+        ? config.contextSize.dm
+        : config.contextSize.channel;
+
+      const history = await client.conversations.history({
+        channel: channelId,
+        limit: limit + 1, // +1 because current message might be included
+      });
+
+      if (history.messages) {
+        for (const msg of history.messages) {
+          if (msg.ts === currentTs) continue;
+          if (context.length >= limit) break;
+          const userInfo = msg.user ? await getUserInfo(client, db, msg.user) : { realName: "Unknown" };
+          context.push({
+            from: userInfo.realName,
+            text: (msg.text || "").substring(0, 200),
+            ts: msg.ts || "",
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`Failed to fetch context for channel ${channelId}:`, error);
+  }
+
+  // Sort by timestamp (oldest first for context)
+  return context.sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts));
+}
+
 // Determine channel type for triage priority
 function getChannelTypeForTriage(channelType: string, threadTs?: string): string {
   if (threadTs) return "thread";
@@ -196,7 +276,7 @@ function getChannelTypeForTriage(channelType: string, threadTs?: string): string
 
 async function main() {
   console.log("SlackSocketListener starting...");
-  console.log(`Database: ${config.dbPath}`);
+  console.log(`Unified cache: ${config.cacheDb}`);
 
   // Get tokens from BWS
   console.log("Retrieving credentials from BWS...");
@@ -220,10 +300,11 @@ async function main() {
 
   // Prepared statement for message insertion
   const insertMessage = db.query(`
-    INSERT OR IGNORE INTO messages (
-      id, channel_id, channel_name, channel_type, user_id, user_name,
-      text, ts, thread_ts, received_at, triage_status, raw_event
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'unread', ?)
+    INSERT OR REPLACE INTO messages (
+      id, source, timestamp, from_name, from_address, subject, body_preview,
+      thread_id, channel_id, channel_name, channel_type, user_id,
+      triage_status, context_messages, raw_event, exported_at
+    ) VALUES (?, 'slack', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unread', ?, ?, datetime('now'))
   `);
 
   // Message counter for logging
@@ -257,26 +338,42 @@ async function main() {
       // Determine channel type for triage
       const triageChannelType = getChannelTypeForTriage(channelInfo.type, threadTs);
 
-      // Generate unique message ID
-      const messageId = `${channelId}-${ts}`;
+      // Fetch context messages for AI categorization
+      const context = await fetchContext(webClient, db, channelId, channelInfo.type, threadTs, ts);
 
-      // Store in database
+      // Generate unique message ID
+      const messageId = `slack-${channelId}-${ts}`;
+
+      // Create subject from channel/thread info
+      const subject = threadTs
+        ? `Thread reply in #${channelInfo.name}`
+        : triageChannelType === "im"
+          ? `DM from ${userInfo.realName}`
+          : triageChannelType === "mpim"
+            ? `Group DM in ${channelInfo.name}`
+            : `#${channelInfo.name}`;
+
+      // Store in unified cache
       insertMessage.run(
         messageId,
+        ts,
+        userInfo.realName,
+        userId,
+        subject,
+        text.substring(0, 500),
+        threadTs || null,
         channelId,
         channelInfo.name,
         triageChannelType,
         userId,
-        userInfo.realName,
-        text,
-        ts,
-        threadTs || null,
+        JSON.stringify(context),
         JSON.stringify(event)
       );
 
       messageCount++;
+      const contextCount = context.length;
       console.log(
-        `[${new Date().toISOString()}] #${messageCount} | ${triageChannelType}:${channelInfo.name} | ${userInfo.name}: ${text.substring(0, 50)}${text.length > 50 ? "..." : ""}`
+        `[${new Date().toISOString()}] #${messageCount} | ${triageChannelType}:${channelInfo.name} | ${userInfo.name}: ${text.substring(0, 50)}${text.length > 50 ? "..." : ""} [${contextCount} ctx]`
       );
     } catch (error) {
       console.error("Error processing message:", error);
