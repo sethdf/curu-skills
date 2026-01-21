@@ -358,6 +358,8 @@ async function exportSlack(channel: string, limit: number, runId: string, opts: 
 }
 
 // Categorize messages using PAI Inference
+const BATCH_SIZE = 15;  // Process 15 messages at a time to avoid timeouts
+
 async function categorizeMessages(runId: string, opts: { quiet: boolean; verbose: boolean }): Promise<number> {
   log("Running AI categorization...", opts);
 
@@ -365,8 +367,7 @@ async function categorizeMessages(runId: string, opts: { quiet: boolean; verbose
   const messagesRaw = await $`sqlite3 -json ${config.cacheDb} "
     SELECT id, source, from_name, from_address, subject, body_preview, thread_id
     FROM messages
-    WHERE run_id = '${runId}' AND category IS NULL
-    LIMIT 50;
+    WHERE run_id = '${runId}' AND category IS NULL;
   "`.text();
 
   let messages: any[];
@@ -382,7 +383,7 @@ async function categorizeMessages(runId: string, opts: { quiet: boolean; verbose
     return 0;
   }
 
-  // Build categorization prompt
+  // Category definitions
   const categories = `
 - Action-Required: Needs direct response or action from user
 - Colleagues: Direct messages from known team members
@@ -391,18 +392,6 @@ async function categorizeMessages(runId: string, opts: { quiet: boolean; verbose
 - AWS-Cloud: Cloud infrastructure notifications
 - FYI-Internal: Internal notifications, no action needed
 - Vendor-Sales: Sales and marketing from external vendors`;
-
-  const messageList = messages
-    .map(
-      (m: any, i: number) => `
-### Message ${i + 1}
-**ID:** ${m.id}
-**From:** ${m.from_name} <${m.from_address}>
-**Subject:** ${m.subject}
-**Preview:** ${m.body_preview?.substring(0, 200) || ""}
-`
-    )
-    .join("\n");
 
   const systemPrompt = `You are an email categorization assistant. Categorize emails into these categories:
 ${categories}
@@ -415,47 +404,90 @@ Rules:
 - reasoning should be 5-15 words
 - Use exact category names from the list above`;
 
-  const userPrompt = `Categorize these messages:
-
-${messageList}`;
-
-  // Call PAI Inference with system and user prompts
-  log(`Categorizing ${messages.length} messages...`, opts, "debug");
-
-  // Import and call Inference directly as a module
-  // Use longer timeout for batch categorization (60s for standard level)
+  // Import inference module once
   const { inference } = await import(config.inferenceScript);
-  const result = await inference({
-    systemPrompt,
-    userPrompt,
-    level: 'standard',
-    expectJson: false,
-    timeout: 60000,  // 60 seconds for batch processing
-  });
 
-  if (!result.success) {
-    log(`Inference failed: ${result.error}`, opts, "error");
-    return 0;
-  }
+  // Process in batches
+  const totalBatches = Math.ceil(messages.length / BATCH_SIZE);
+  log(`Categorizing ${messages.length} messages in ${totalBatches} batches...`, opts, "debug");
 
-  const inferenceResult = result.output;
+  let totalCategorized = 0;
 
-  // Parse JSON from response
-  let results: any[];
-  try {
-    const jsonMatch = inferenceResult.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      results = JSON.parse(jsonMatch[0]);
-    } else {
-      throw new Error("No JSON array found in response");
+  for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+    const start = batchNum * BATCH_SIZE;
+    const end = Math.min(start + BATCH_SIZE, messages.length);
+    const batch = messages.slice(start, end);
+
+    log(`Processing batch ${batchNum + 1}/${totalBatches} (${batch.length} messages)...`, opts, "debug");
+
+    const messageList = batch
+      .map(
+        (m: any, i: number) => `
+### Message ${i + 1}
+**ID:** ${m.id}
+**From:** ${m.from_name} <${m.from_address}>
+**Subject:** ${m.subject}
+**Preview:** ${m.body_preview?.substring(0, 200) || ""}
+`
+      )
+      .join("\n");
+
+    const userPrompt = `Categorize these messages:\n\n${messageList}`;
+
+    // Call PAI Inference
+    const result = await inference({
+      systemPrompt,
+      userPrompt,
+      level: 'standard',
+      expectJson: false,
+      timeout: 45000,  // 45 seconds per batch
+    });
+
+    if (!result.success) {
+      log(`Batch ${batchNum + 1} failed: ${result.error}`, opts, "error");
+      continue;  // Try next batch
     }
-  } catch (e) {
-    log(`Failed to parse AI response: ${e}`, opts, "error");
-    log(`Response was: ${inferenceResult.substring(0, 500)}`, opts, "debug");
-    return 0;
+
+    // Parse JSON from response
+    let results: any[];
+    try {
+      const jsonMatch = result.output.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        results = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("No JSON array found in response");
+      }
+    } catch (e) {
+      log(`Failed to parse batch ${batchNum + 1}: ${e}`, opts, "error");
+      continue;  // Try next batch
+    }
+
+    // Update cache with categories
+    for (const item of results) {
+      if (!item.id || !item.category) continue;
+
+      const category = item.category.replace(/'/g, "''");
+      const confidence = item.confidence || 5;
+      const reasoning = (item.reasoning || "").replace(/'/g, "''");
+
+      await $`sqlite3 ${config.cacheDb} "
+        UPDATE messages
+        SET category = '${category}', confidence = ${confidence}, reasoning = '${reasoning}'
+        WHERE id = '${item.id}';
+      "`.quiet();
+
+      totalCategorized++;
+    }
+
+    log(`Batch ${batchNum + 1} complete: ${results.length} categorized`, opts, "debug");
   }
 
-  // Update cache with categories
+  log(`Categorized ${totalCategorized} messages`, opts, "success");
+  return totalCategorized;
+}
+
+// Placeholder to keep the rest of the file working
+async function _oldCategorizeMessages(): Promise<number> {
   let categorized = 0;
   for (const result of results) {
     if (!result.id || !result.category) continue;
