@@ -66,6 +66,7 @@ function parseArgs(): {
   dryRun: boolean;
   cached: boolean;
   fresh: boolean;
+  categorizePending: boolean;
   quiet: boolean;
   verbose: boolean;
   help: boolean;
@@ -79,6 +80,7 @@ function parseArgs(): {
     dryRun: false,
     cached: false,
     fresh: false,
+    categorizePending: false,
     quiet: false,
     verbose: false,
     help: false,
@@ -107,6 +109,9 @@ function parseArgs(): {
         break;
       case "--fresh":
         result.fresh = true;
+        break;
+      case "--categorize-pending":
+        result.categorizePending = true;
         break;
       case "--quiet":
         result.quiet = true;
@@ -161,8 +166,9 @@ ${colors.yellow}OPTIONS:${colors.reset}
   --help                     Show this help
 
 ${colors.yellow}MODES:${colors.reset}
-  ${colors.green}--cached${colors.reset}  Instant results from SQLite cache (use for interactive queries)
-  ${colors.green}--fresh${colors.reset}   Full export + AI categorization (use for cron background jobs)
+  ${colors.green}--cached${colors.reset}              Instant results from SQLite cache (use for interactive queries)
+  ${colors.green}--fresh${colors.reset}               Full export + AI categorization (use for cron background jobs)
+  ${colors.green}--categorize-pending${colors.reset}  Categorize uncategorized messages (for Socket Mode Slack)
 
 ${colors.yellow}EXAMPLES:${colors.reset}
   # Interactive: instant cached results
@@ -671,8 +677,8 @@ async function main() {
     process.exit(1);
   }
 
-  if (args.source === "slack" && !args.channel && !args.cached) {
-    console.error(`${colors.red}Error: --channel is required for slack source (unless using --cached)${colors.reset}`);
+  if (args.source === "slack" && !args.channel && !args.cached && !args.categorizePending) {
+    console.error(`${colors.red}Error: --channel is required for slack source (unless using --cached or --categorize-pending)${colors.reset}`);
     process.exit(1);
   }
 
@@ -685,6 +691,20 @@ async function main() {
     // CACHED MODE: Just query existing results (instant)
     if (args.cached) {
       await queryCached(args.source, logOpts);
+      process.exit(0);
+    }
+
+    // CATEGORIZE-PENDING MODE: Categorize uncategorized messages by source
+    // Useful for Slack messages from Socket Mode that don't have a run_id
+    if (args.categorizePending) {
+      log(`Categorizing pending ${args.source} messages...`, logOpts);
+      const categorized = await categorizeMessages("", logOpts, args.source);
+      log(`Categorized ${categorized} pending messages`, logOpts, "success");
+
+      if (args.notify) {
+        await sendNotification(`Categorized ${categorized} pending ${args.source} messages`, logOpts);
+      }
+
       process.exit(0);
     }
 
