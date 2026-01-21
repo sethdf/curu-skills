@@ -5,11 +5,11 @@ SHELL=/bin/bash
 PATH=/home/ubuntu/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin
 HOME=/home/ubuntu
 
-# Email: every 5 minutes (export from MS365 + AI categorization)
-*/5 * * * * ubuntu /home/ubuntu/.nix-profile/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --fresh --quiet 2>&1 | logger -t autotriage-email
+# Email: every minute (export from MS365 + AI categorization)
+* * * * * ubuntu flock -n /tmp/autotriage-email.lock /home/ubuntu/.nix-profile/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source email --fresh --quiet 2>&1 | logger -t autotriage-email
 
-# Slack: every 5 minutes (export from slackdump + AI categorization)
-*/5 * * * * ubuntu /home/ubuntu/.nix-profile/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source slack --fresh --quiet 2>&1 | logger -t autotriage-slack
+# Slack: every minute (export from slackdump + AI categorization)
+* * * * * ubuntu flock -n /tmp/autotriage-slack.lock /home/ubuntu/.nix-profile/bin/bun /home/ubuntu/repos/github.com/sethdf/curu-skills/MessageTriage/Tools/AutoTriage.ts --source slack --fresh --quiet 2>&1 | logger -t autotriage-slack
 
 # Architecture:
 # - Email: Cron polls MS365 → exports to unified cache → AI categorizes
