@@ -273,17 +273,18 @@ Get-MgUserMailFolderMessage -UserId '${config.ms365User}' -MailFolderId $inbox.I
   log(`Retrieved ${messages.length} unread emails`, opts, "debug");
 
   // Insert into cache
+  // MS365 returns PascalCase fields (Id, Subject, From, etc.)
   for (const msg of messages) {
-    if (!msg || !msg.id) continue;
+    if (!msg || !msg.Id) continue;
 
-    const id = msg.id;
-    const subject = (msg.subject || "").replace(/'/g, "''");
-    const fromName = (msg.from?.emailAddress?.name || "").replace(/'/g, "''");
-    const fromAddr = msg.from?.emailAddress?.address || "";
-    const timestamp = msg.receivedDateTime || "";
-    const preview = (msg.bodyPreview || "").replace(/'/g, "''");
-    const threadId = msg.conversationId || "";
-    const isRead = msg.isRead ? 1 : 0;
+    const id = msg.Id;
+    const subject = (msg.Subject || "").replace(/'/g, "''");
+    const fromName = (msg.From?.EmailAddress?.Name || "").replace(/'/g, "''");
+    const fromAddr = msg.From?.EmailAddress?.Address || "";
+    const timestamp = msg.ReceivedDateTime || "";
+    const preview = (msg.BodyPreview || "").replace(/'/g, "''");
+    const threadId = msg.ConversationId || "";
+    const isRead = msg.IsRead ? 1 : 0;
 
     await $`sqlite3 ${config.cacheDb} "
       INSERT OR REPLACE INTO messages (id, source, timestamp, from_name, from_address, subject, body_preview, thread_id, is_read, run_id)
