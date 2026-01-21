@@ -423,12 +423,14 @@ ${messageList}`;
   log(`Categorizing ${messages.length} messages...`, opts, "debug");
 
   // Import and call Inference directly as a module
+  // Use longer timeout for batch categorization (60s for standard level)
   const { inference } = await import(config.inferenceScript);
   const result = await inference({
     systemPrompt,
     userPrompt,
     level: 'standard',
     expectJson: false,
+    timeout: 60000,  // 60 seconds for batch processing
   });
 
   if (!result.success) {
