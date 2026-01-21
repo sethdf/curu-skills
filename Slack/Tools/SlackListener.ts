@@ -16,7 +16,7 @@
 
 import { SocketModeClient } from '@slack/socket-mode';
 import { WebClient } from '@slack/web-api';
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { $ } from 'bun';
@@ -47,13 +47,13 @@ async function getToken(secretName: string): Promise<string> {
 }
 
 // Initialize SQLite database
-function initDatabase(dbPath: string): Database.Database {
+function initDatabase(dbPath: string): Database {
   const dir = join(dbPath, '..');
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
 
-  const db = new Database(dbPath);
+  const db = new Database(dbPath, { create: true });
 
   // Create tables
   db.exec(`
@@ -111,7 +111,9 @@ function log(level: string, message: string, data?: any) {
   try {
     const logDir = join(LOG_PATH, '..');
     if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
-    Bun.write(LOG_PATH, `${logLine} ${data ? JSON.stringify(data) : ''}\n`, { append: true });
+    const file = Bun.file(LOG_PATH);
+    const existing = existsSync(LOG_PATH) ? await file.text() : '';
+    Bun.write(LOG_PATH, existing + `${logLine} ${data ? JSON.stringify(data) : ''}\n`);
   } catch {}
 }
 
@@ -125,7 +127,7 @@ function getChannelType(channelId: string): string {
 
 // Main listener
 async function startListener() {
-  log('INFO', 'Starting Slack Socket Mode listener...');
+  console.log(`${colors.green}Starting Slack Socket Mode listener...${colors.reset}`);
 
   // Get tokens
   const appToken = await getToken('slack-app-token');
@@ -133,7 +135,7 @@ async function startListener() {
 
   // Initialize database
   const db = initDatabase(DB_PATH);
-  log('INFO', `Database initialized at ${DB_PATH}`);
+  console.log(`${colors.cyan}Database initialized at ${DB_PATH}${colors.reset}`);
 
   // Prepare statements
   const insertMessage = db.prepare(`
@@ -225,29 +227,29 @@ async function startListener() {
     );
 
     const preview = (event.text || '').substring(0, 50);
-    log('INFO', `[${channelType}] #${channelName} <${userName}>: ${preview}...`);
+    console.log(`${colors.cyan}[${channelType}]${colors.reset} #${channelName} <${userName}>: ${preview}${preview.length >= 50 ? '...' : ''}`);
   });
 
   // Handle connection events
   socketClient.on('connected', () => {
-    log('INFO', 'Connected to Slack Socket Mode');
+    console.log(`${colors.green}Connected to Slack Socket Mode${colors.reset}`);
   });
 
   socketClient.on('disconnected', () => {
-    log('WARN', 'Disconnected from Slack Socket Mode');
+    console.log(`${colors.yellow}Disconnected from Slack Socket Mode${colors.reset}`);
   });
 
   socketClient.on('error', (error) => {
-    log('ERROR', 'Socket Mode error', error);
+    console.error(`${colors.red}Socket Mode error:${colors.reset}`, error);
   });
 
   // Start the connection
   await socketClient.start();
-  log('INFO', 'Slack listener running. Press Ctrl+C to stop.');
+  console.log(`${colors.green}Slack listener running. Press Ctrl+C to stop.${colors.reset}`);
 
   // Keep alive
   process.on('SIGINT', () => {
-    log('INFO', 'Shutting down...');
+    console.log(`\n${colors.yellow}Shutting down...${colors.reset}`);
     db.close();
     process.exit(0);
   });
@@ -267,9 +269,11 @@ if (args.includes('--init-db')) {
 
   if (existsSync(DB_PATH)) {
     const db = new Database(DB_PATH, { readonly: true });
-    const count = db.prepare('SELECT COUNT(*) as count FROM messages').get() as any;
-    const latest = db.prepare('SELECT datetime(received_at) as latest FROM messages ORDER BY received_at DESC LIMIT 1').get() as any;
+    const count = db.query('SELECT COUNT(*) as count FROM messages').get() as any;
+    const latest = db.query('SELECT datetime(received_at) as latest FROM messages ORDER BY received_at DESC LIMIT 1').get() as any;
+    const unread = db.query("SELECT COUNT(*) as count FROM messages WHERE triage_status = 'unread'").get() as any;
     console.log(`Messages: ${count?.count || 0}`);
+    console.log(`Unread: ${unread?.count || 0}`);
     console.log(`Latest: ${latest?.latest || 'none'}`);
     db.close();
   }
