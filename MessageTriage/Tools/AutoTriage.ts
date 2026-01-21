@@ -12,6 +12,8 @@
  * Options:
  *   --source <email|slack>     Message source (required)
  *   --channel <name>           Slack channel (required for slack)
+ *   --cached                   Query cached results only (instant, default for interactive)
+ *   --fresh                    Force fresh export and categorization (default for cron)
  *   --limit <n>                Max messages to process (default: 100)
  *   --notify                   Send notification on completion
  *   --dry-run                  Export and categorize but don't apply
