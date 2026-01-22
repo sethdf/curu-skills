@@ -97,8 +97,8 @@ function error(msg: string) {
  * Fetch tickets from SDP via auth-keeper
  */
 async function fetchTickets(): Promise<Ticket[]> {
-  // Source auth-keeper and run sdp command
-  const result = spawnSync("bash", ["-c", "source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh && auth-keeper sdp"], {
+  // Source auth-keeper and run sdp command with JSON output
+  const result = spawnSync("bash", ["-c", "ZONE=work source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh && auth-keeper sdp --json"], {
     encoding: "utf-8",
     timeout: 30000,
   });
@@ -128,12 +128,13 @@ function calculateMetrics(tickets: Ticket[]): TicketMetrics[] {
   const now = Date.now();
 
   return tickets.map((ticket) => {
-    const createdTime = new Date(ticket.created_time).getTime();
+    // SDP timestamps are milliseconds as strings
+    const createdTime = parseInt(ticket.created_time, 10) || now;
     const dueTime = ticket.due_by_time
-      ? new Date(ticket.due_by_time).getTime()
+      ? parseInt(ticket.due_by_time, 10)
       : null;
     const lastUpdated = ticket.last_updated_time
-      ? new Date(ticket.last_updated_time).getTime()
+      ? parseInt(ticket.last_updated_time, 10)
       : createdTime;
 
     const daysOpen = Math.floor((now - createdTime) / (1000 * 60 * 60 * 24));
