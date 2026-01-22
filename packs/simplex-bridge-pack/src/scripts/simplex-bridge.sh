@@ -337,7 +337,7 @@ status() {
 
 # Test routing
 test_routing() {
-    local message="${1:-What's on my calendar today?}"
+    local message="${1:-Whats on my calendar today?}"
 
     log "Testing routing for: $message"
 
