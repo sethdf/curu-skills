@@ -74,13 +74,21 @@ User: "/wherewasi --all"
 
 ## Quick Reference
 
-- **Data source:** `~/.claude/MEMORY/WORK/` directories
-- **Time filters:** today, yesterday, 3d, 7d, all
-- **Zone detection:** Automatic from cwd
-- **Output:** Interactive selection via AskUserQuestion
+- **Data source:** `~/.claude/projects/` JSONL transcripts (full conversation history)
+- **Time filters:** today (1d), yesterday (2d), 3d, 7d, 30d
+- **Zone detection:** Automatic from cwd or explicit with --zone flag
+- **Output:** JSON (default) or table format via --format flag
+- **Detail view:** Use --detail <session_id> for full context
 
 ## Tool
 
 ```bash
-bun ~/.claude/skills/WhereWasI/Tools/ListSessions.ts [--zone <work|home|all>] [--days <n>]
+bun ~/.claude/skills/WhereWasI/Tools/ListSessions.ts [options]
+
+Options:
+  --zone <work|home|all>    Filter by zone (default: auto-detect)
+  --days <n>                Show sessions from last n days (default: 7)
+  --format <json|table>     Output format (default: json)
+  --verbose, -v             Include full user intent
+  --detail <session_id>     Show full details for a session
 ```
