@@ -245,16 +245,22 @@ async function parseJsonlFile(filePath: string): Promise<{
       try {
         const entry: JsonlEntry = JSON.parse(line);
 
-        // Capture first REAL user message as intent (skip hook-injected messages)
+        // Capture first REAL user message as intent (skip hook-injected messages and tool results)
         if (!userIntent && entry.type === 'user' && entry.message?.role === 'user') {
           const content = entry.message.content;
           let messageText = '';
           if (typeof content === 'string') {
             messageText = content;
           } else if (Array.isArray(content)) {
-            const textContent = content.find((c: any) => c.type === 'text');
-            if (textContent?.text) {
-              messageText = textContent.text;
+            // Skip if this is a tool result (not a user message)
+            const hasToolResult = content.some((c: any) => c.type === 'tool_result');
+            if (hasToolResult) {
+              // Skip this entry
+            } else {
+              const textContent = content.find((c: any) => c.type === 'text');
+              if (textContent?.text) {
+                messageText = textContent.text;
+              }
             }
           }
           // Only use this as intent if it's not a hook message
