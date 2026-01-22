@@ -9,6 +9,7 @@ CONFIG_FILE="${SIMPLEX_BRIDGE_CONFIG:-$HOME/.config/simplex-bridge/config.yaml}"
 LOG_DIR="${SIMPLEX_BRIDGE_LOG_DIR:-$HOME/inbox/simplex}"
 CLAUDE_CMD="${CLAUDE_CMD:-claude}"
 HAIKU_MODEL="claude-3-5-haiku-latest"
+LIST_SESSIONS_TOOL="$HOME/.claude/skills/WhereWasI/Tools/ListSessions.ts"
 
 # Ensure log directory exists
 mkdir -p "$LOG_DIR"
