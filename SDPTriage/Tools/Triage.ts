@@ -97,7 +97,8 @@ function error(msg: string) {
  * Fetch tickets from SDP via auth-keeper
  */
 async function fetchTickets(): Promise<Ticket[]> {
-  const result = spawnSync("auth-keeper", ["sdp"], {
+  // Source auth-keeper and run sdp command
+  const result = spawnSync("bash", ["-c", "source ~/repos/github.com/sethdf/imladris/scripts/auth-keeper.sh && auth-keeper sdp"], {
     encoding: "utf-8",
     timeout: 30000,
   });
@@ -106,10 +107,17 @@ async function fetchTickets(): Promise<Ticket[]> {
     throw new Error(`Failed to fetch tickets: ${result.stderr}`);
   }
 
+  const output = result.stdout.trim();
+
+  // Handle "no active tickets" message
+  if (output.startsWith("No active tickets")) {
+    return [];
+  }
+
   try {
-    return JSON.parse(result.stdout);
+    return JSON.parse(output);
   } catch {
-    throw new Error(`Failed to parse ticket response: ${result.stdout}`);
+    throw new Error(`Failed to parse ticket response: ${output}`);
   }
 }
 
