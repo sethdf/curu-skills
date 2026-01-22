@@ -27,8 +27,8 @@ export interface CategorizationResult {
   scoring: ScoringResult;
 }
 
-// Use Claude 3.5 Haiku for fast, cheap inference
-const BEDROCK_MODEL = "anthropic.claude-3-5-haiku-20241022-v1:0";
+// Use Claude 3.5 Haiku via inference profile for fast, cheap inference
+const BEDROCK_MODEL = "us.anthropic.claude-3-5-haiku-20241022-v1:0";
 const AWS_REGION = process.env.AWS_REGION || "us-east-1";
 
 // Categories with descriptions for the prompt
