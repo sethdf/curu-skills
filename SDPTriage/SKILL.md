@@ -54,8 +54,9 @@ AI-powered ServiceDesk Plus ticket prioritization using Claude inference for int
 **AI Enhancement:**
 - Uses PAI Inference tool: `bun ~/.claude/skills/CORE/Tools/Inference.ts standard`
 - Considers context beyond rules (ticket patterns, requester history)
-- Returns: Priority Tier (P0-P3), Reasoning, Suggested Action
+- Returns: Priority Tier (P0-P3), Quick Win flag, Reasoning, Suggested Action
 - Groups by urgency for batch processing
+- Identifies Quick Wins for momentum building
 
 **Full Documentation:**
 - Scoring criteria: Read `ScoringCriteria.md`
@@ -96,6 +97,23 @@ User: "Show me a triage report for my queue"
 | **P1 High** | Overdue, or VIP, or 24+ hours no response | Handle today |
 | **P2 Medium** | Due soon, or standard priority aging | Handle this week |
 | **P3 Low** | On track, low priority | Handle when able |
+
+## Quick Wins
+
+**Separate from priority tiers** - Quick Wins are tickets AI identifies as easy to resolve quickly, regardless of priority tier.
+
+| Indicator | Description |
+|-----------|-------------|
+| **Simple Request** | Password reset, access grant, info request |
+| **Known Solution** | Common issue with documented fix |
+| **Low Complexity** | Single action resolves it |
+| **Fast Turnaround** | Can close in < 15 minutes |
+
+Quick Wins help:
+- Build momentum during busy days
+- Clear queue volume efficiently
+- Improve response metrics
+- Boost morale with visible progress
 
 ## Dependencies
 
