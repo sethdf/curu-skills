@@ -105,8 +105,8 @@ export async function getUnreadEmails(
   const user = getUser();
 
   const psCommand = `
-$inbox = Get-MgUserMailFolder -UserId '${user}' | Where-Object { $_.DisplayName -eq 'Inbox' }
-Get-MgUserMailFolderMessage -UserId '${user}' -MailFolderId $inbox.Id -Filter 'isRead eq false' -Top ${limit} -Select 'id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead,toRecipients,hasAttachments,importance,categories' | ConvertTo-Json -Depth 5
+\$inbox = Get-MgUserMailFolder -UserId '${user}' | Where-Object { \$_.DisplayName -eq 'Inbox' }
+Get-MgUserMailFolderMessage -UserId '${user}' -MailFolderId \$inbox.Id -Filter 'isRead eq false' -Top ${limit} -Select 'id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead,toRecipients,hasAttachments,importance,categories' | ConvertTo-Json -Depth 5
 `.trim();
 
   const result = await runPowerShell(psCommand);
@@ -194,7 +194,7 @@ export async function markEmailAsRead(messageId: string): Promise<boolean> {
   const user = getUser();
 
   const psCommand = `
-Update-MgUserMessage -UserId '${user}' -MessageId '${messageId}' -IsRead:$true
+Update-MgUserMessage -UserId '${user}' -MessageId '${messageId}' -IsRead:\$true
 `.trim();
 
   try {
