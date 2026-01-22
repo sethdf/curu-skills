@@ -120,12 +120,27 @@ bun ~/.claude/skills/CORE/Tools/Inference.ts \
 
 ## Step 5: Generate Output
 
-Present results grouped by tier:
+Present results with Quick Wins highlighted, then grouped by tier:
 
 ```markdown
 # Ticket Triage Report
 *Generated: {timestamp}*
 *Tickets analyzed: {count}*
+
+---
+
+## Quick Wins (Clear These Fast)
+
+These tickets can be resolved quickly for momentum:
+
+| ID | Subject | Est. Time | Tier | Why Quick |
+|----|---------|-----------|------|-----------|
+| #12360 | Password reset | 5min | P2 | Standard reset, known process |
+| #12365 | Access request | 15min | P3 | Simple group add in AD |
+
+**Quick Win Strategy:** Knock these out first for visible progress, then focus on P0/P1.
+
+---
 
 ## P0 - Critical (Handle Immediately)
 
@@ -160,21 +175,28 @@ Present results grouped by tier:
 
 | ID | Subject | Days Open | Status |
 |----|---------|-----------|--------|
-| #12360 | Software request | 2 | On track, low priority |
+| #12361 | Software request | 2 | On track, low priority |
 
 ---
 
 ## Summary Statistics
 
-- **P0 Critical:** 2 tickets
-- **P1 High:** 1 ticket
-- **P2 Medium:** 1 ticket
-- **P3 Low:** 1 ticket
-- **Total:** 5 tickets
+| Category | Count |
+|----------|-------|
+| **P0 Critical** | 2 |
+| **P1 High** | 1 |
+| **P2 Medium** | 1 |
+| **P3 Low** | 2 |
+| **Total** | 6 |
+| **Quick Wins** | 2 |
 
-**Response Gap Alert:** 3 tickets awaiting your response 24+ hours
+**Alerts:**
+- Response Gap (24h+): 3 tickets
+- Quick Wins Available: 2 tickets (~20min total)
 ```
 
 ## Output
 
-Return the formatted triage report. Offer to take action on P0 tickets immediately.
+Return the formatted triage report with Quick Wins section first (for easy clearing), then priority tiers. Offer to:
+1. Handle Quick Wins first for momentum
+2. Take immediate action on P0 tickets
