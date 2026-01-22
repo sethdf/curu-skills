@@ -120,26 +120,31 @@ async function invokeBedrockModel(prompt: string): Promise<string> {
     ],
   });
 
-  // Write request to temp file to avoid shell escaping issues
-  const tmpFile = `/tmp/bedrock-request-${Date.now()}.json`;
-  await Bun.write(tmpFile, requestBody);
+  // Use temp files for both input and output
+  const timestamp = Date.now();
+  const inputFile = `/tmp/bedrock-request-${timestamp}.json`;
+  const outputFile = `/tmp/bedrock-response-${timestamp}.json`;
+
+  await Bun.write(inputFile, requestBody);
 
   try {
-    const result = await $`aws bedrock-runtime invoke-model \
+    await $`aws bedrock-runtime invoke-model \
       --model-id ${BEDROCK_MODEL} \
       --region ${AWS_REGION} \
       --content-type application/json \
       --accept application/json \
-      --body fileb://${tmpFile} \
-      /dev/stdout`.text();
+      --body fileb://${inputFile} \
+      ${outputFile}`.quiet();
 
-    // Clean up temp file
-    await $`rm -f ${tmpFile}`.quiet();
+    const resultText = await Bun.file(outputFile).text();
 
-    const parsed = JSON.parse(result);
+    // Clean up temp files
+    await $`rm -f ${inputFile} ${outputFile}`.quiet();
+
+    const parsed = JSON.parse(resultText);
     return parsed.content?.[0]?.text || "";
   } catch (e) {
-    await $`rm -f ${tmpFile}`.quiet();
+    await $`rm -f ${inputFile} ${outputFile}`.quiet();
     throw e;
   }
 }
