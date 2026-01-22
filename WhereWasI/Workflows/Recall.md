@@ -1,6 +1,14 @@
 # Recall Workflow
 
-Recall a previous work session with zone-aware filtering.
+Recall a previous work session with zone-aware filtering and rich context.
+
+## Data Source
+
+Sessions are read from `~/.claude/projects/` JSONL transcripts, which contain:
+- The original user request (intent)
+- All tool calls and file modifications
+- Full conversation context
+- Accurate timestamps
 
 ## Intent-to-Flag Mapping
 
@@ -29,7 +37,7 @@ Recall a previous work session with zone-aware filtering.
 |-----------|------|-------------|
 | (default for Claude) | `--format json` | Structured data for processing |
 | "show me", "list" | `--format table` | Human-readable output |
-| "details", "more info" | `--verbose` | Include item summaries |
+| "details", "more info" | `--verbose` | Include full user intent |
 
 ## Execution Steps
 
@@ -70,13 +78,18 @@ The tool outputs JSON with session metadata:
 ```json
 [
   {
-    "id": "20260121-060549_what-were-we-working-on",
+    "id": "abc123-def456-...",
     "title": "what were we working on",
+    "userIntent": "what were we working on yesterday?",
     "created_at": "2026-01-21T06:05:49-07:00",
-    "completed_at": "2026-01-21T06:08:32-07:00",
-    "status": "COMPLETED",
+    "updated_at": "2026-01-21T06:08:32-07:00",
     "zone": "HOME",
-    "age": "today"
+    "age": "today",
+    "projectDir": "-data-home-repos-github-com-sethdf-curu-skills",
+    "messageCount": 45,
+    "filesModified": ["path/to/file.ts"],
+    "toolsUsed": ["Bash", "Edit", "Read"],
+    "cwd": "/data/home/repos/github.com/sethdf/curu-skills"
   }
 ]
 ```
@@ -86,25 +99,34 @@ The tool outputs JSON with session metadata:
 Use **AskUserQuestion** to present sessions grouped by time:
 
 **Today:**
-- [Title 1] (HH:MM) - STATUS
-- [Title 2] (HH:MM) - STATUS
+- [Title 1] (HH:MM) - N files modified
+- [Title 2] (HH:MM) - N files modified
 
 **Yesterday:**
-- [Title 3] - STATUS
+- [Title 3] - N files modified
 
 **Older:**
-- [Title 4] (Jan 19) - STATUS
+- [Title 4] (Jan 19) - N files modified
 
-Include option to filter further or see more.
+Include option to see more details or filter further.
 
 ### 4. Load Session Context
 
-When user selects a session:
+When user selects a session, use the `--detail` flag:
 
-1. Read the META.yaml from `~/.claude/MEMORY/WORK/{session_id}/`
-2. Read any items from `~/.claude/MEMORY/WORK/{session_id}/items/`
-3. Check for scratch/ artifacts
-4. Summarize what was being worked on
+```bash
+bun ~/.claude/skills/WhereWasI/Tools/ListSessions.ts --detail <session_id> --format table
+```
+
+This shows:
+- Session title and ID
+- Zone and working directory
+- Start time and last activity
+- Message count
+- Full user intent
+- Tools used
+- Files modified
+- Source file path
 
 ### 5. Provide Resume Context
 
@@ -114,31 +136,27 @@ Output a summary for the user:
 ## Resuming: {title}
 
 **When:** {timestamp}
-**Status:** {status}
+**Where:** {cwd}
+**Zone:** {zone}
 
-### What was happening:
-{summary from items}
+### What you were doing:
+{userIntent}
 
 ### Files involved:
-{files_changed from lineage}
+{filesModified}
+
+### Tools used:
+{toolsUsed}
 
 ### Where to continue:
-{recommended next steps}
+{recommended next steps based on context}
 ```
 
-## Time Filter Interpretation
+## Filtering Notes
 
-| User Says | Days |
-|-----------|------|
-| "today" | 0 |
-| "yesterday" | 1 |
-| "this week", "recent" | 7 |
-| "last few days" | 3 |
-| No filter | 7 (default) |
+The tool automatically filters:
+- Hook-injected system messages (CONTEXT:, system-reminder, etc.)
+- Very short sessions (< 5 messages) that are likely stubs
+- Sessions with no real user intent
 
-## Zone Override
-
-If user explicitly mentions zone:
-- "work sessions" → WORK zone only
-- "home stuff" → HOME zone only
-- "all", "everything" → ALL zones
+This ensures only meaningful work sessions are shown.
