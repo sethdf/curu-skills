@@ -195,19 +195,7 @@ format_sessions_mobile() {
     local count="${2:-5}"
 
     # Parse JSON and format for mobile
-    echo "$json" | jq -r --argjson count "$count" '
-        . as $sessions |
-        if length == 0 then
-            "No recent sessions found."
-        else
-            "Recent Sessions:\n" +
-            ($sessions[:$count] | to_entries | map(
-                "\(.key + 1). [\(.value.age)] \(.value.title)" +
-                (if .value.status == "COMPLETED" then " ✓" else " ◎" end)
-            ) | join("\n")) +
-            (if length > $count then "\n\n(\(length - $count) more...)" else "" end)
-        end
-    '
+    echo "$json" | jq -r --argjson count "$count" '. as $sessions | if length == 0 then "No recent sessions found." else "Recent Sessions:\n" + ($sessions[:$count] | to_entries | map("\(.key + 1). [\(.value.age)] \(.value.title)" + (if .value.status == "COMPLETED" then " [done]" else " [open]" end)) | join("\n")) + (if length > $count then "\n\n(\(length - $count) more...)" else "" end) end'
 }
 
 # Handle sessions/wherewasi request directly (fast path)
