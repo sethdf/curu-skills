@@ -1,18 +1,30 @@
 ---
-name: SDP
-description: ServiceDesk Plus ticket management. USE WHEN checking tickets, viewing overdue tickets, adding notes to tickets, replying to tickets, OR managing SDP helpdesk requests. Invoke with /sdp.
+name: SDPRequests
+description: ServiceDesk Plus request/ticket management. USE WHEN checking tickets, viewing overdue tickets, adding notes to tickets, replying to tickets, OR managing SDP helpdesk requests. Invoke with /sdp.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/SDP/`
+`~/.claude/skills/CORE/USER/SKILLCUSTOMIZATIONS/SDPRequests/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
-# SDP (ServiceDesk Plus)
+# SDPRequests (ServiceDesk Plus Requests)
 
-CLI-first ServiceDesk Plus ticket management. Token-efficient - loads only when invoked.
+CLI-first ServiceDesk Plus request management. Token-efficient - loads only when invoked.
+
+## Tools
+
+All operations are available as standalone TypeScript tools:
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `MyTickets.ts` | List assigned tickets | `bun Tools/MyTickets.ts [--json]` |
+| `Overdue.ts` | List overdue tickets | `bun Tools/Overdue.ts [--json]` |
+| `Suggest.ts` | AI-powered ticket suggestion | `bun Tools/Suggest.ts [--json]` |
+| `AddNote.ts` | Add internal note | `bun Tools/AddNote.ts <id> "note"` |
+| `Reply.ts` | Reply to requester | `bun Tools/Reply.ts <id> "message" [--status "In Progress"]` |
 
 ## Quick Start
 
