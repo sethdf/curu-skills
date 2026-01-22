@@ -160,15 +160,15 @@ export async function getDeltaEmails(
   if (deltaLink) {
     // Use existing delta link for incremental sync
     psCommand = `
-$uri = '${deltaLink}'
-Invoke-MgGraphRequest -Method GET -Uri $uri | ConvertTo-Json -Depth 5
+\$uri = '${deltaLink}'
+Invoke-MgGraphRequest -Method GET -Uri \$uri | ConvertTo-Json -Depth 5
 `.trim();
   } else {
     // Initial delta sync - get all messages
     psCommand = `
-$inbox = Get-MgUserMailFolder -UserId '${user}' | Where-Object { $_.DisplayName -eq 'Inbox' }
-$uri = "https://graph.microsoft.com/v1.0/users/${user}/mailFolders/$($inbox.Id)/messages/delta?`$select=id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead,hasAttachments,importance"
-Invoke-MgGraphRequest -Method GET -Uri $uri | ConvertTo-Json -Depth 5
+\$inbox = Get-MgUserMailFolder -UserId '${user}' | Where-Object { \$_.DisplayName -eq 'Inbox' }
+\$uri = "https://graph.microsoft.com/v1.0/users/${user}/mailFolders/\$(\$inbox.Id)/messages/delta?\\\`\$select=id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead,hasAttachments,importance"
+Invoke-MgGraphRequest -Method GET -Uri \$uri | ConvertTo-Json -Depth 5
 `.trim();
   }
 
