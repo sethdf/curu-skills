@@ -124,6 +124,33 @@ Examples:
 }
 
 /**
+ * Map database row (snake_case) to Item type (camelCase)
+ */
+function mapDbRowToItem(row: Record<string, unknown>): Item {
+  return {
+    id: row.id as string,
+    source: row.source as Item["source"],
+    sourceId: (row.source_id || row.sourceId) as string,
+    itemType: (row.item_type || row.itemType || "message") as Item["itemType"],
+    timestamp: new Date((row.timestamp as string) || Date.now()),
+    from: {
+      name: (row.from_name || row.fromName) as string | null,
+      address: (row.from_address || row.fromAddress) as string | null,
+      userId: (row.from_user_id || row.fromUserId) as string | null,
+    },
+    subject: (row.subject as string) || null,
+    body: (row.body as string) || null,
+    bodyPreview: (row.body_preview || row.bodyPreview) as string | null,
+    threadId: (row.thread_id || row.threadId) as string | null,
+    threadContext: null, // Not needed for categorization
+    metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : {},
+    readStatus: ((row.read_status || row.readStatus) as Item["readStatus"]) || "unread",
+    createdAt: new Date((row.created_at || row.createdAt) as string || Date.now()),
+    updatedAt: new Date((row.updated_at || row.updatedAt) as string || Date.now()),
+  };
+}
+
+/**
  * Query items from UnifiedInbox
  */
 async function queryItems(options: CliOptions, untriaged: boolean = true): Promise<Item[]> {
@@ -143,7 +170,9 @@ async function queryItems(options: CliOptions, untriaged: boolean = true): Promi
 
   try {
     const result = await $`sh -c ${cmd}`.text();
-    return JSON.parse(result);
+    const rows = JSON.parse(result) as Record<string, unknown>[];
+    // Map snake_case database rows to camelCase Item type
+    return rows.map(mapDbRowToItem);
   } catch (error) {
     if (options.verbose) {
       console.error("[query] Error:", error);
