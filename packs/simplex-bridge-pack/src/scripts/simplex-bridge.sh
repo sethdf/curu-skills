@@ -189,6 +189,55 @@ log_conversation() {
     } >> "$log_file"
 }
 
+# Format sessions for mobile display
+format_sessions_mobile() {
+    local json="$1"
+    local count="${2:-5}"
+
+    # Parse JSON and format for mobile
+    echo "$json" | jq -r --argjson count "$count" '
+        . as $sessions |
+        if length == 0 then
+            "No recent sessions found."
+        else
+            "Recent Sessions:\n" +
+            ($sessions[:$count] | to_entries | map(
+                "\(.key + 1). [\(.value.age)] \(.value.title)" +
+                (if .value.status == "COMPLETED" then " ✓" else " ◎" end)
+            ) | join("\n")) +
+            (if length > $count then "\n\n(\(length - $count) more...)" else "" end)
+        end
+    '
+}
+
+# Handle sessions/wherewasi request directly (fast path)
+handle_sessions_request() {
+    local days="${1:-7}"
+
+    if [[ ! -f "$LIST_SESSIONS_TOOL" ]]; then
+        echo "Sessions tool not found. Install WhereWasI skill."
+        return 1
+    fi
+
+    local sessions_json
+    sessions_json=$(bun "$LIST_SESSIONS_TOOL" --format json --days "$days" 2>/dev/null)
+
+    if [[ -z "$sessions_json" || "$sessions_json" == "[]" ]]; then
+        echo "No sessions found in last $days days."
+        return 0
+    fi
+
+    format_sessions_mobile "$sessions_json" 5
+}
+
+# Check if message is a sessions request
+is_sessions_request() {
+    local message="$1"
+    local lower_msg=$(echo "$message" | tr '[:upper:]' '[:lower:]')
+
+    [[ "$lower_msg" =~ ^(sessions|wherewasi|/wherewasi|where\ was\ i|what\ was\ i\ working\ on|resume|recent\ sessions) ]]
+}
+
 # Process incoming message
 process_message() {
     local sender="$1"
@@ -196,6 +245,17 @@ process_message() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     log "Processing message from $sender: ${message:0:50}..."
+
+    # Fast path: Handle sessions/wherewasi requests directly
+    if is_sessions_request "$message"; then
+        log "Fast path: Sessions request detected"
+        local response
+        response=$(handle_sessions_request 7)
+        send_simplex_response "$sender" "$response"
+        log_conversation "$timestamp" "$sender" "$message" "$response" "sessions"
+        log_success "Sessions request handled (fast path)"
+        return
+    fi
 
     # Detect context
     local routing_json
@@ -301,6 +361,14 @@ test_routing() {
     echo "$routing_json" | jq .
 }
 
+# Test sessions handler
+test_sessions() {
+    local days="${1:-7}"
+    log "Testing sessions handler (last $days days)..."
+    echo ""
+    handle_sessions_request "$days"
+}
+
 # Main
 main() {
     check_deps
@@ -317,8 +385,12 @@ main() {
             shift
             test_routing "$@"
             ;;
+        sessions)
+            shift
+            test_sessions "$@"
+            ;;
         *)
-            echo "Usage: $0 {listen|status|test [message]}"
+            echo "Usage: $0 {listen|status|test [message]|sessions [days]}"
             exit 1
             ;;
     esac
