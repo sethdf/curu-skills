@@ -106,6 +106,45 @@ Return ONLY valid JSON:
 }
 
 /**
+ * Call AWS Bedrock for inference
+ */
+async function invokeBedrockModel(prompt: string): Promise<string> {
+  const requestBody = JSON.stringify({
+    anthropic_version: "bedrock-2023-05-31",
+    max_tokens: 500,
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
+
+  // Write request to temp file to avoid shell escaping issues
+  const tmpFile = `/tmp/bedrock-request-${Date.now()}.json`;
+  await Bun.write(tmpFile, requestBody);
+
+  try {
+    const result = await $`aws bedrock-runtime invoke-model \
+      --model-id ${BEDROCK_MODEL} \
+      --region ${AWS_REGION} \
+      --content-type application/json \
+      --accept application/json \
+      --body fileb://${tmpFile} \
+      /dev/stdout`.text();
+
+    // Clean up temp file
+    await $`rm -f ${tmpFile}`.quiet();
+
+    const parsed = JSON.parse(result);
+    return parsed.content?.[0]?.text || "";
+  } catch (e) {
+    await $`rm -f ${tmpFile}`.quiet();
+    throw e;
+  }
+}
+
+/**
  * Categorize a single item using AI
  */
 export async function categorizeItem(
@@ -120,9 +159,8 @@ export async function categorizeItem(
   }
 
   try {
-    // Call inference tool (standard = Sonnet for balanced speed/quality)
-    const result =
-      await $`echo ${prompt} | bun ${INFERENCE_TOOL} standard`.text();
+    // Call AWS Bedrock for inference
+    const result = await invokeBedrockModel(prompt);
 
     // Parse JSON response
     const jsonMatch = result.match(/\{[\s\S]*\}/);
