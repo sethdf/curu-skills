@@ -101,49 +101,17 @@ Return ONLY valid JSON:
   return prompt;
 }
 
-/**
- * Call AWS Bedrock for inference
- */
-async function invokeBedrockModel(prompt: string): Promise<string> {
-  const requestBody = JSON.stringify({
-    anthropic_version: "bedrock-2023-05-31",
-    max_tokens: 500,
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
+// System prompt for categorization
+const SYSTEM_PROMPT = `You are an inbox triage assistant. Categorize items and return ONLY valid JSON.
+Categories:
+- Action-Required: Needs direct action (request, assigned task, question)
+- FYI: Informational only (status update, newsletter, notification)
+- Delegatable: Can be handed off (request within someone else's domain)
+- Spam: Unwanted or irrelevant (marketing, automated alerts)
+- Archive: Completed or no longer relevant (old thread, resolved issue)
 
-  // Use temp files for both input and output
-  const timestamp = Date.now();
-  const inputFile = `/tmp/bedrock-request-${timestamp}.json`;
-  const outputFile = `/tmp/bedrock-response-${timestamp}.json`;
-
-  await Bun.write(inputFile, requestBody);
-
-  try {
-    await $`aws bedrock-runtime invoke-model \
-      --model-id ${BEDROCK_MODEL} \
-      --region ${AWS_REGION} \
-      --content-type application/json \
-      --accept application/json \
-      --body fileb://${inputFile} \
-      ${outputFile}`.quiet();
-
-    const resultText = await Bun.file(outputFile).text();
-
-    // Clean up temp files
-    await $`rm -f ${inputFile} ${outputFile}`.quiet();
-
-    const parsed = JSON.parse(resultText);
-    return parsed.content?.[0]?.text || "";
-  } catch (e) {
-    await $`rm -f ${inputFile} ${outputFile}`.quiet();
-    throw e;
-  }
-}
+Response format:
+{"category": "Action-Required|FYI|Delegatable|Spam|Archive", "confidence": 1-10, "reasoning": "Brief explanation", "suggestedAction": "What to do next"}`;
 
 /**
  * Categorize a single item using AI
@@ -153,23 +121,36 @@ export async function categorizeItem(
   isVip: boolean,
   verbose: boolean = false
 ): Promise<CategorizationResult> {
-  const prompt = buildPrompt(item, isVip);
+  const userPrompt = buildPrompt(item, isVip);
 
   if (verbose) {
     console.error(`[categorize] Processing ${item.id}...`);
   }
 
   try {
-    // Call AWS Bedrock for inference
-    const result = await invokeBedrockModel(prompt);
+    // Call PAI Inference.ts (Claude Code subscription, fast = Haiku)
+    const result = await inference({
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt,
+      level: "fast",
+      expectJson: true,
+      timeout: 15000,
+    });
 
-    // Parse JSON response
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in AI response");
+    if (!result.success) {
+      throw new Error(result.error || "Inference failed");
     }
 
-    const aiResult = JSON.parse(jsonMatch[0]);
+    const aiResult = result.parsed as {
+      category?: string;
+      confidence?: number;
+      reasoning?: string;
+      suggestedAction?: string;
+    };
+
+    if (!aiResult) {
+      throw new Error("No JSON parsed from AI response");
+    }
 
     // Validate category
     const validCategories = [
