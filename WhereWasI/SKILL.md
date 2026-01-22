@@ -92,3 +92,4 @@ Options:
   --verbose, -v             Include full user intent
   --detail <session_id>     Show full details for a session
 ```
+# gitwatch test Thu Jan 22 09:17:34 MST 2026
