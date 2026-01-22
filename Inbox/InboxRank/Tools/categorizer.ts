@@ -27,76 +27,44 @@ export interface CategorizationResult {
   scoring: ScoringResult;
 }
 
-// Categories with descriptions for the prompt
-const CATEGORIES = `
-- Action-Required: Needs your direct action (request for decision, assigned task, question to answer)
-- FYI: Informational only, no action needed (status update, newsletter, notification)
-- Delegatable: Can be handed off to someone else (request within someone else's domain)
-- Spam: Unwanted or irrelevant (marketing, automated alerts you don't need)
-- Archive: Completed or no longer relevant (old thread, resolved issue)
-`;
-
 /**
  * Build the categorization prompt for a single item
  */
 function buildPrompt(item: Item, isVip: boolean): string {
   const metadata = item.metadata || {};
 
-  let prompt = `Categorize this inbox item. Return ONLY a JSON object.
-
-## Item Details
+  let prompt = `## Item Details
 - Source: ${item.source}
 - From: ${item.fromName || "Unknown"} <${item.fromAddress || "unknown"}>
 - VIP: ${isVip ? "Yes" : "No"}
 - Subject: ${item.subject || "(no subject)"}
 - Received: ${item.timestamp}
-- Type: ${item.itemType}
-`;
+- Type: ${item.itemType}`;
 
   // Add source-specific context
   if (item.source.startsWith("sdp-")) {
-    prompt += `- Status: ${metadata.status || "unknown"}
-- Priority: ${metadata.priority || "unknown"}
-`;
+    prompt += `\n- Status: ${metadata.status || "unknown"}`;
+    prompt += `\n- Priority: ${metadata.priority || "unknown"}`;
     if (metadata.dueDate) {
-      prompt += `- Due Date: ${metadata.dueDate}\n`;
+      prompt += `\n- Due Date: ${metadata.dueDate}`;
     }
   }
 
   if (item.source === "slack") {
-    prompt += `- Channel: ${metadata.channelName || metadata.channelId || "unknown"}
-- Channel Type: ${metadata.channelType || "unknown"}
-`;
+    prompt += `\n- Channel: ${metadata.channelName || metadata.channelId || "unknown"}`;
+    prompt += `\n- Channel Type: ${metadata.channelType || "unknown"}`;
   }
 
   // Add body preview
-  prompt += `
-## Content Preview
-${item.bodyPreview || item.body?.substring(0, 500) || "(empty)"}
+  prompt += `\n\n## Content Preview\n${item.bodyPreview || item.body?.substring(0, 500) || "(empty)"}`;
 
-## Thread Context
-`;
-
+  // Add thread context
   if (item.threadContext && item.threadContext.length > 0) {
+    prompt += `\n\n## Thread Context`;
     for (const msg of item.threadContext.slice(-3)) {
-      prompt += `- ${msg.fromName}: ${msg.preview}\n`;
+      prompt += `\n- ${msg.fromName}: ${msg.preview}`;
     }
-  } else {
-    prompt += "(no thread context)\n";
   }
-
-  prompt += `
-## Categories
-${CATEGORIES}
-
-## Response Format
-Return ONLY valid JSON:
-{
-  "category": "Action-Required|FYI|Delegatable|Spam|Archive",
-  "confidence": 1-10,
-  "reasoning": "Brief explanation",
-  "suggestedAction": "What to do next"
-}`;
 
   return prompt;
 }
