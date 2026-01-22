@@ -191,6 +191,7 @@ function isHookMessage(content: string): boolean {
     '<local-command-caveat>',
     '<task-notification>',
     '<system-reminder>',
+    '<command-name>',
     'Previous context:',
     'Resuming the workflow',
     'Triage these tickets:',
