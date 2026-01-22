@@ -192,9 +192,20 @@ function isHookMessage(content: string): boolean {
     '<task-notification>',
     '<system-reminder>',
     'Previous context:',
+    'Resuming the workflow',
+    'Triage these tickets:',
   ];
   const trimmed = content.trim();
   return hookPrefixes.some(prefix => trimmed.startsWith(prefix));
+}
+
+/**
+ * Check if a message is a slash command (not useful as title)
+ */
+function isSlashCommand(content: string): boolean {
+  const trimmed = content.trim();
+  // Match /command or /command with args, but not long messages that happen to start with /
+  return /^\/[a-zA-Z]+(\s|$)/.test(trimmed) && trimmed.length < 50;
 }
 
 /**
