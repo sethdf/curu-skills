@@ -182,6 +182,22 @@ function decodeProjectPath(dirName: string): string {
 }
 
 /**
+ * Check if a message is a hook-injected system message (not real user intent)
+ */
+function isHookMessage(content: string): boolean {
+  const hookPrefixes = [
+    'CONTEXT:',
+    "USER'S CURRENT MESSAGE",
+    '<local-command-caveat>',
+    '<task-notification>',
+    '<system-reminder>',
+    'Previous context:',
+  ];
+  const trimmed = content.trim();
+  return hookPrefixes.some(prefix => trimmed.startsWith(prefix));
+}
+
+/**
  * Parse a JSONL file and extract session metadata
  */
 async function parseJsonlFile(filePath: string): Promise<{
@@ -218,16 +234,21 @@ async function parseJsonlFile(filePath: string): Promise<{
       try {
         const entry: JsonlEntry = JSON.parse(line);
 
-        // Capture first user message as intent
+        // Capture first REAL user message as intent (skip hook-injected messages)
         if (!userIntent && entry.type === 'user' && entry.message?.role === 'user') {
           const content = entry.message.content;
+          let messageText = '';
           if (typeof content === 'string') {
-            userIntent = content.substring(0, 200);
+            messageText = content;
           } else if (Array.isArray(content)) {
             const textContent = content.find((c: any) => c.type === 'text');
             if (textContent?.text) {
-              userIntent = textContent.text.substring(0, 200);
+              messageText = textContent.text;
             }
+          }
+          // Only use this as intent if it's not a hook message
+          if (messageText && !isHookMessage(messageText)) {
+            userIntent = messageText.substring(0, 200);
           }
         }
 
@@ -408,10 +429,20 @@ async function listSessions(zone: Zone, days: number): Promise<SessionInfo[]> {
     // Return empty if projects directory unreadable
   }
 
-  // Sort by updated_at descending (most recent first)
-  sessions.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  // Deduplicate by session ID (same session can appear in multiple project directories)
+  const seenIds = new Set<string>();
+  const dedupedSessions: SessionInfo[] = [];
+  for (const session of sessions) {
+    if (!seenIds.has(session.id)) {
+      seenIds.add(session.id);
+      dedupedSessions.push(session);
+    }
+  }
 
-  return sessions;
+  // Sort by updated_at descending (most recent first)
+  dedupedSessions.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+  return dedupedSessions;
 }
 
 /**
