@@ -189,6 +189,7 @@ function isHookMessage(content: string): boolean {
     'CONTEXT:',
     "USER'S CURRENT MESSAGE",
     '<local-command-caveat>',
+    '<local-command-stdout>',
     '<task-notification>',
     '<system-reminder>',
     '<command-name>',
