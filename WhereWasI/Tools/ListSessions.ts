@@ -196,7 +196,26 @@ function isHookMessage(content: string): boolean {
     'Triage these tickets:',
   ];
   const trimmed = content.trim();
-  return hookPrefixes.some(prefix => trimmed.startsWith(prefix));
+  if (hookPrefixes.some(prefix => trimmed.startsWith(prefix))) {
+    return true;
+  }
+
+  // Detect PAI session summary patterns (StopOrchestrator output)
+  // These are typically short, past tense, factual summaries injected as context
+  // Pattern: Starts with past tense verb + noun, short length, no question mark
+  const summaryPatterns = [
+    /^(Pushed|Committed|Created|Updated|Fixed|Completed|Renamed|Migrated|Added|Removed|Deleted|Implemented|Configured|Deployed|Built|Installed|Upgraded|Refactored|Merged)\s/i,
+    /^(Full sync|SDP|Exit code|Gitwatch|Unknown skill)/i,
+  ];
+
+  // Only apply summary detection to short messages (likely summaries, not real intent)
+  if (trimmed.length < 100 && !trimmed.includes('?')) {
+    if (summaryPatterns.some(pattern => pattern.test(trimmed))) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
