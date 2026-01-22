@@ -402,8 +402,9 @@ async function listSessions(zone: Zone, days: number): Promise<SessionInfo[]> {
           // Parse the JSONL file
           const parsed = await parseJsonlFile(jsonlFile);
 
-          // Skip if no actual content
+          // Skip if no actual content or no real user intent
           if (parsed.messageCount < 2) continue;
+          if (parsed.userIntent === '(no user message found)') continue;
 
           sessions.push({
             id: parsed.sessionId || basename(jsonlFile, '.jsonl'),
