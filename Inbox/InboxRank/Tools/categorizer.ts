@@ -1,7 +1,7 @@
 /**
  * InboxRank AI Categorizer
  *
- * Uses PAI inference tool to categorize inbox items.
+ * Uses AWS Bedrock (Claude) to categorize inbox items.
  * This is the ONLY AI step in the triage pipeline.
  */
 
@@ -27,7 +27,9 @@ export interface CategorizationResult {
   scoring: ScoringResult;
 }
 
-const INFERENCE_TOOL = "~/.claude/tools/Inference.ts";
+// Use Claude 3.5 Haiku for fast, cheap inference
+const BEDROCK_MODEL = "anthropic.claude-3-5-haiku-20241022-v1:0";
+const AWS_REGION = process.env.AWS_REGION || "us-east-1";
 
 // Categories with descriptions for the prompt
 const CATEGORIES = `
