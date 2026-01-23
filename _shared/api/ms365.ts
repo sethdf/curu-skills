@@ -339,12 +339,16 @@ Get-MgUser -UserId '${user}' | Select-Object UserPrincipalName | ConvertTo-Json
 export function normalizeEmail(msg: MS365Message): Item {
   const id = `email-ms365:${msg.Id}`;
 
+  // Validate timestamp - fallback to now if invalid
+  const timestamp = msg.ReceivedDateTime ? new Date(msg.ReceivedDateTime) : new Date();
+  const validTimestamp = isNaN(timestamp.getTime()) ? new Date() : timestamp;
+
   return {
     id,
     source: "email-ms365",
     sourceId: msg.Id,
     itemType: "message",
-    timestamp: new Date(msg.ReceivedDateTime),
+    timestamp: validTimestamp,
     from: {
       name: msg.From?.EmailAddress?.Name || null,
       address: msg.From?.EmailAddress?.Address || null,
