@@ -127,6 +127,11 @@ async function syncCommand(options: SyncOptions): Promise<void> {
       if (!options.dryRun) {
         // Store items in database
         for (const item of items) {
+          // Skip items with missing required fields
+          if (!item.sourceId) {
+            console.error(`  Skipping item with missing sourceId: ${item.subject?.substring(0, 30)}`);
+            continue;
+          }
           upsertItem({
             id: item.id,
             source: item.source,
