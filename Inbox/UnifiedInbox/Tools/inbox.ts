@@ -132,7 +132,9 @@ async function syncCommand(options: SyncOptions): Promise<void> {
             source: item.source,
             source_id: item.sourceId,
             item_type: item.itemType,
-            timestamp: item.timestamp.toISOString(),
+            timestamp: (item.timestamp && !isNaN(item.timestamp.getTime()))
+              ? item.timestamp.toISOString()
+              : new Date().toISOString(),
             from_name: item.from?.name || null,
             from_address: item.from?.address || null,
             from_user_id: item.from?.userId || null,
