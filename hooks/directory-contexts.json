@@ -1,0 +1,104 @@
+{
+  "$schema": "./lib/directory-context-types.ts",
+  "contexts": [
+    {
+      "id": "tickets",
+      "pathPrefix": "/home/ubuntu/work/tickets",
+      "description": "ServiceDesk Plus ticket workspace",
+      "behaviors": [
+        {
+          "type": "execute",
+          "command": "auth-keeper sdp overdue 2>/dev/null || echo 'SDP not available'",
+          "label": "Overdue Tickets",
+          "timeout": 15000
+        },
+        {
+          "type": "execute",
+          "command": "auth-keeper sdp suggest 2>/dev/null || echo 'Suggestion unavailable'",
+          "label": "Suggested Next Ticket",
+          "timeout": 20000
+        }
+      ]
+    },
+    {
+      "id": "requests",
+      "pathPrefix": "/home/ubuntu/work/requests",
+      "description": "ServiceDesk Plus service requests",
+      "behaviors": [
+        {
+          "type": "execute",
+          "command": "auth-keeper sdp requests pending 2>/dev/null || echo 'No pending requests'",
+          "label": "Pending Requests",
+          "timeout": 15000
+        }
+      ]
+    },
+    {
+      "id": "changes",
+      "pathPrefix": "/home/ubuntu/work/changes",
+      "description": "Change control management",
+      "behaviors": [
+        {
+          "type": "execute",
+          "command": "auth-keeper sdp changes pending 2>/dev/null || echo 'No pending changes'",
+          "label": "Pending Change Requests",
+          "timeout": 15000
+        }
+      ]
+    },
+    {
+      "id": "general",
+      "pathPrefix": "/home/ubuntu/work/general",
+      "description": "General work - email, calendar, admin",
+      "behaviors": [
+        {
+          "type": "execute",
+          "command": "inbox query --unread --limit 5 2>/dev/null || echo 'Inbox not synced'",
+          "label": "Recent Unread Messages",
+          "timeout": 10000
+        },
+        {
+          "type": "showInfo",
+          "content": "**General Work Zone**\n\nThis is your administrative workspace for:\n- Email and messaging\n- Calendar management\n- Administrative tasks"
+        }
+      ]
+    },
+    {
+      "id": "projects",
+      "pathPrefix": "/home/ubuntu/work/projects",
+      "description": "Long-running project work",
+      "behaviors": [
+        {
+          "type": "showInfo",
+          "content": "**Projects Workspace**\n\nLong-running project work and multi-phase initiatives."
+        }
+      ]
+    },
+    {
+      "id": "tasks",
+      "pathPrefix": "/home/ubuntu/work/tasks",
+      "description": "Individual task tracking",
+      "behaviors": [
+        {
+          "type": "showInfo",
+          "content": "**Tasks Workspace**\n\nIndividual task tracking and short-term work items."
+        }
+      ]
+    },
+    {
+      "id": "code",
+      "pathPrefix": "/home/ubuntu/work/code",
+      "description": "Development and coding",
+      "behaviors": [
+        {
+          "type": "showInfo",
+          "content": "**Code Workspace**\n\nDevelopment, coding, and technical implementation work."
+        }
+      ]
+    }
+  ],
+  "defaults": {
+    "commandTimeout": 10000,
+    "failSilently": true
+  }
+}
