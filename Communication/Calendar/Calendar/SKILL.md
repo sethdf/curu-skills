@@ -23,13 +23,35 @@ Zone-aware calendar skill using auth-keeper backend. Automatically routes to MS3
 
 **Detection:** Uses `$ZONE` environment variable set by direnv.
 
+## CLI Tool
+
+The calendar CLI provides quick access to calendar operations:
+
+```bash
+# Location
+~/_shared/api/calendar.ts
+
+# Commands
+bun calendar.ts health          # Check calendar connection
+bun calendar.ts today           # Show today's events
+bun calendar.ts next [hours]    # Show events in next N hours (default: 2)
+bun calendar.ts week            # Show this week's events
+bun calendar.ts free            # Show today's free time slots
+bun calendar.ts schedule        # Show today's events + free slots
+bun calendar.ts json [cmd]      # Output as JSON (today|week|schedule)
+```
+
 ## Quick Reference
 
 ```bash
 # Check zone
 echo $ZONE
 
-# Work context (MS365)
+# Use CLI tool (recommended)
+bun ~/repos/github.com/sethdf/curu-skills/_shared/api/calendar.ts today
+bun ~/repos/github.com/sethdf/curu-skills/_shared/api/calendar.ts free
+
+# Work context (MS365) - direct PowerShell
 auth-keeper ms365 "Get-MgUserEvent -UserId 'sfoley@buxtonco.com' -Top 10"
 
 # Home context (Google)
@@ -43,6 +65,8 @@ auth-keeper google calendar
 | **Today** | "today's schedule", "what's on my calendar" | `Workflows/Today.md` |
 | **Week** | "this week", "week ahead" | `Workflows/Week.md` |
 | **Create** | "schedule meeting", "create event" | `Workflows/Create.md` |
+| **FreeSlots** | "when am I free", "available time", "free slots" | `Workflows/FreeSlots.md` |
+| **Next** | "next few hours", "upcoming meetings" | `Workflows/Next.md` |
 
 ## Examples
 
