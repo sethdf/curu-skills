@@ -17,11 +17,11 @@ BUN=/home/ubuntu/.nix-profile/bin/bun
 # Slack: every 1 minute (highest priority - real-time chat)
 * * * * * ubuntu flock -n /tmp/inbox-sync-slack.lock $BUN $INBOX_CLI sync --source slack 2>&1 | logger -t inbox-slack
 
-# Email (MS365): every 5 minutes
-*/5 * * * * ubuntu flock -n /tmp/inbox-sync-email.lock $BUN $INBOX_CLI sync --source email-ms365 2>&1 | logger -t inbox-email
+# Email (MS365 + Gmail): every 5 minutes
+*/5 * * * * ubuntu flock -n /tmp/inbox-sync-email.lock $BUN $INBOX_CLI sync --source email-ms365,email-gmail 2>&1 | logger -t inbox-email
 
-# SDP Tickets: every 5 minutes
-*/5 * * * * ubuntu flock -n /tmp/inbox-sync-sdp.lock $BUN $INBOX_CLI sync --source sdp-ticket 2>&1 | logger -t inbox-sdp
+# SDP Tickets + Tasks: every 5 minutes
+*/5 * * * * ubuntu flock -n /tmp/inbox-sync-sdp.lock $BUN $INBOX_CLI sync --source sdp-ticket,sdp-task 2>&1 | logger -t inbox-sdp
 
 # Telegram: every 5 minutes
 */5 * * * * ubuntu flock -n /tmp/inbox-sync-telegram.lock $BUN $INBOX_CLI sync --source telegram 2>&1 | logger -t inbox-telegram
@@ -35,8 +35,10 @@ BUN=/home/ubuntu/.nix-profile/bin/bun
 
 # =============================================================================
 # Architecture:
-# - Slack syncs every minute from slackdump.sqlite
-# - Email/SDP/Telegram sync every 5 minutes
-# - InboxRank runs every 2 minutes to categorize new items
+# - Slack (chat): every 1 minute (real-time)
+# - Email (MS365 + Gmail): every 5 minutes
+# - SDP (tickets + tasks): every 5 minutes
+# - Telegram: every 5 minutes
+# - InboxRank: every 2 minutes (AI categorization)
 # - All data stored in /data/.cache/unified-inbox/inbox.sqlite
 # =============================================================================
