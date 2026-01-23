@@ -8,7 +8,7 @@ HOME=/home/ubuntu
 # Paths
 INBOX_CLI=/home/ubuntu/repos/github.com/sethdf/curu-skills/Inbox/UnifiedInbox/Tools/inbox.ts
 RANK_CLI=/home/ubuntu/repos/github.com/sethdf/curu-skills/Inbox/InboxRank/Tools/inboxrank.ts
-BUN=/home/ubuntu/.bun/bin/bun
+BUN=/home/ubuntu/.nix-profile/bin/bun
 
 # =============================================================================
 # SYNC JOBS - Pull data from sources into UnifiedInbox cache
