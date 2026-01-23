@@ -520,7 +520,8 @@ export const sdpTicketAdapter: SourceAdapter = {
 
     try {
       const limit = options?.limit || 100;
-      const tickets = await getOpenTickets(limit);
+      // Only sync tickets assigned to me (sfoley@buxtonco.com)
+      const tickets = await getMyTickets(limit, DEFAULT_TECHNICIAN_EMAIL);
       itemsProcessed = tickets.length;
 
       return {
@@ -554,7 +555,8 @@ export const sdpTicketAdapter: SourceAdapter = {
   },
 
   async getItems(since?: Date): Promise<Item[]> {
-    const tickets = await getOpenTickets(100);
+    // Only get tickets assigned to me (sfoley@buxtonco.com)
+    const tickets = await getMyTickets(100, DEFAULT_TECHNICIAN_EMAIL);
 
     let filtered = tickets;
     if (since) {
