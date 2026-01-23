@@ -97,7 +97,7 @@ async function runPowerShell(command: string): Promise<string> {
 }
 
 /**
- * Get unread emails from inbox
+ * Get unread emails from inbox (single page, for backward compatibility)
  */
 export async function getUnreadEmails(
   limit: number = 100
@@ -117,6 +117,67 @@ Get-MgUserMailFolderMessage -UserId '${user}' -MailFolderId \$inbox.Id -Filter '
   } catch (e) {
     console.error(`Failed to parse MS365 response: ${e}`);
     return [];
+  }
+}
+
+interface PagedResponse {
+  value: MS365Message[];
+  "@odata.nextLink"?: string;
+}
+
+/**
+ * Get ALL unread emails with pagination
+ * Fetches pages of 100 until all unread emails are retrieved
+ */
+export async function getAllUnreadEmails(
+  maxPages: number = 20,  // Safety limit: 20 pages = 2000 emails max
+  onProgress?: (fetched: number, page: number) => void
+): Promise<MS365Message[]> {
+  const user = getUser();
+  const allMessages: MS365Message[] = [];
+  let page = 1;
+
+  // First request - get inbox folder and initial page
+  const initialCommand = `
+\$inbox = Get-MgUserMailFolder -UserId '${user}' | Where-Object { \$_.DisplayName -eq 'Inbox' }
+\$uri = "https://graph.microsoft.com/v1.0/users/${user}/mailFolders/\$(\$inbox.Id)/messages?\\\`\$filter=isRead eq false&\\\`\$top=100&\\\`\$select=id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead,toRecipients,hasAttachments,importance,categories"
+Invoke-MgGraphRequest -Method GET -Uri \$uri | ConvertTo-Json -Depth 5
+`.trim();
+
+  let result = await runPowerShell(initialCommand);
+
+  try {
+    let parsed: PagedResponse = JSON.parse(result);
+
+    while (true) {
+      const messages = parsed.value || [];
+      allMessages.push(...messages);
+
+      if (onProgress) {
+        onProgress(allMessages.length, page);
+      }
+
+      // Check if there's a next page
+      const nextLink = parsed["@odata.nextLink"];
+      if (!nextLink || page >= maxPages) {
+        break;
+      }
+
+      page++;
+
+      // Fetch next page
+      const nextCommand = `
+Invoke-MgGraphRequest -Method GET -Uri '${nextLink}' | ConvertTo-Json -Depth 5
+`.trim();
+
+      result = await runPowerShell(nextCommand);
+      parsed = JSON.parse(result);
+    }
+
+    return allMessages;
+  } catch (e) {
+    console.error(`Failed to parse MS365 paginated response: ${e}`);
+    return allMessages; // Return what we have so far
   }
 }
 
