@@ -438,7 +438,8 @@ export const ms365Adapter: SourceAdapter = {
   },
 
   async getItems(since?: Date): Promise<Item[]> {
-    const emails = await getUnreadEmails(100);
+    // Get ALL unread emails with pagination
+    const emails = await getAllUnreadEmails(20);
 
     let filtered = emails;
     if (since) {
