@@ -48,29 +48,29 @@ function getUser(): string {
 // =============================================================================
 
 interface MS365Message {
-  Id: string;
-  Subject: string;
-  From: {
-    EmailAddress: {
-      Name: string;
-      Address: string;
+  id: string;
+  subject: string;
+  from: {
+    emailAddress: {
+      name: string;
+      address: string;
     };
   };
-  ReceivedDateTime: string;
-  Body?: {
-    Content: string;
-    ContentType: string;
+  receivedDateTime: string;
+  body?: {
+    content: string;
+    contentType: string;
   };
-  BodyPreview: string;
-  ConversationId: string;
-  IsRead: boolean;
-  ParentFolderId?: string;
-  InternetMessageId?: string;
-  ToRecipients?: Array<{ EmailAddress: { Name: string; Address: string } }>;
-  CcRecipients?: Array<{ EmailAddress: { Name: string; Address: string } }>;
-  HasAttachments?: boolean;
-  Importance?: string;
-  Categories?: string[];
+  bodyPreview: string;
+  conversationId: string;
+  isRead: boolean;
+  parentFolderId?: string;
+  internetMessageId?: string;
+  toRecipients?: Array<{ emailAddress: { name: string; address: string } }>;
+  ccRecipients?: Array<{ emailAddress: { name: string; address: string } }>;
+  hasAttachments?: boolean;
+  importance?: string;
+  categories?: string[];
 }
 
 interface MS365DeltaResponse {
