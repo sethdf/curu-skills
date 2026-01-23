@@ -176,6 +176,8 @@ export async function getMyTickets(
   limit: number = 50,
   technicianEmail: string = DEFAULT_TECHNICIAN_EMAIL
 ): Promise<SdpTicket[]> {
+  // Technician filter first, then AND with in_progress status
+  // status.in_progress=true captures Open, In Progress, On Hold (excludes Closed, Canceled)
   const inputData = {
     list_info: {
       row_count: limit,
@@ -184,9 +186,8 @@ export async function getMyTickets(
       sort_order: "asc",
       get_total_count: true,
       search_criteria: [
-        { field: "status.in_progress", condition: "is", logical_operator: "OR", value: true },
-        { field: "status.name", condition: "is", value: "Open" },
         { field: "technician.email_id", condition: "is", value: technicianEmail },
+        { field: "status.in_progress", condition: "is", logical_operator: "AND", value: true },
       ],
     },
   };
