@@ -8,11 +8,28 @@
  * If --cwd is provided, shows work from that directory first, then global.
  */
 
-import { readdirSync, readFileSync } from "fs";
+import { readdirSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { parse as parseYaml } from "yaml";
 
-const WORK_DIR = join(process.env.HOME || "/home/ubuntu", ".claude/MEMORY/WORK");
+const HOME = process.env.HOME || "/home/ubuntu";
+const WORK_DIR = join(HOME, ".claude/MEMORY/WORK");
+const CURRENT_SESSION_FILE = join(HOME, ".claude/.current-session");
+
+/**
+ * Get cwd from .current-session file (same source as AutoWorkCreation)
+ */
+function getSessionCwd(): string | undefined {
+  try {
+    if (existsSync(CURRENT_SESSION_FILE)) {
+      const session = JSON.parse(readFileSync(CURRENT_SESSION_FILE, "utf-8"));
+      return session.cwd;
+    }
+  } catch {
+    // Silently fail
+  }
+  return undefined;
+}
 
 interface WorkMeta {
   id: string;
@@ -99,6 +116,7 @@ function main() {
   let limit = 5;
   let filter: string | undefined;
   let cwd: string | undefined;
+  let autoDetectCwd = true; // Auto-detect cwd from session by default
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--limit" && args[i + 1]) {
@@ -109,8 +127,16 @@ function main() {
       i++;
     } else if (args[i] === "--cwd" && args[i + 1]) {
       cwd = args[i + 1];
+      autoDetectCwd = false;
       i++;
+    } else if (args[i] === "--global") {
+      autoDetectCwd = false; // Disable auto-detection, show all work
     }
+  }
+
+  // Auto-detect cwd from current session if not explicitly provided
+  if (autoDetectCwd && !cwd) {
+    cwd = getSessionCwd();
   }
 
   const work = getRecentWork(limit, filter, cwd);
