@@ -24,7 +24,7 @@ All operations are available as standalone TypeScript tools:
 | `MyTickets.ts` | List assigned tickets | `bun Tools/MyTickets.ts [--json]` |
 | `Overdue.ts` | List overdue tickets | `bun Tools/Overdue.ts [--json]` |
 | `Suggest.ts` | AI-powered ticket suggestion | `bun Tools/Suggest.ts [--json]` |
-| `AddNote.ts` | Add internal note | `bun Tools/AddNote.ts <id> "note"` |
+| `AddNote.ts` | Add internal note | `bun Tools/AddNote.ts <id> "note" [--public]` |
 | `Reply.ts` | Reply to requester | `bun Tools/Reply.ts <id> "message" [--status "In Progress"]` |
 
 ## Quick Start
