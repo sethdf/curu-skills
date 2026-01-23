@@ -395,9 +395,11 @@ export const ms365Adapter: SourceAdapter = {
           itemsProcessed++;
         }
       } else {
-        // Initial sync - get unread emails
-        const limit = options?.limit || 100;
-        const emails = await getUnreadEmails(limit);
+        // Initial sync - get ALL unread emails with pagination
+        const maxPages = options?.limit ? Math.ceil(options.limit / 100) : 20;
+        const emails = await getAllUnreadEmails(maxPages, (fetched, page) => {
+          console.error(`  [ms365] Page ${page}: fetched ${fetched} emails so far...`);
+        });
         itemsProcessed = emails.length;
 
         // Get delta link for future syncs
