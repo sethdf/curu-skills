@@ -337,37 +337,37 @@ Get-MgUser -UserId '${user}' | Select-Object UserPrincipalName | ConvertTo-Json
  * Convert MS365 message to normalized Item format
  */
 export function normalizeEmail(msg: MS365Message): Item {
-  const id = `email-ms365:${msg.Id}`;
+  const itemId = `email-ms365:${msg.id}`;
 
   // Validate timestamp - fallback to now if invalid
-  const timestamp = msg.ReceivedDateTime ? new Date(msg.ReceivedDateTime) : new Date();
+  const timestamp = msg.receivedDateTime ? new Date(msg.receivedDateTime) : new Date();
   const validTimestamp = isNaN(timestamp.getTime()) ? new Date() : timestamp;
 
   return {
-    id,
+    id: itemId,
     source: "email-ms365",
-    sourceId: msg.Id,
+    sourceId: msg.id,
     itemType: "message",
     timestamp: validTimestamp,
     from: {
-      name: msg.From?.EmailAddress?.Name || null,
-      address: msg.From?.EmailAddress?.Address || null,
+      name: msg.from?.emailAddress?.name || null,
+      address: msg.from?.emailAddress?.address || null,
       userId: null, // MS365 doesn't expose internal user IDs easily
     },
-    subject: msg.Subject || null,
-    body: msg.Body?.Content || null,
-    bodyPreview: msg.BodyPreview?.substring(0, 200) || null,
-    threadId: msg.ConversationId || null,
+    subject: msg.subject || null,
+    body: msg.body?.content || null,
+    bodyPreview: msg.bodyPreview?.substring(0, 200) || null,
+    threadId: msg.conversationId || null,
     threadContext: null, // Populated separately if needed
     metadata: {
-      hasAttachments: msg.HasAttachments,
-      importance: msg.Importance,
-      categories: msg.Categories,
-      internetMessageId: msg.InternetMessageId,
-      toRecipients: msg.ToRecipients?.map((r) => r.EmailAddress.Address),
-      ccRecipients: msg.CcRecipients?.map((r) => r.EmailAddress.Address),
+      hasAttachments: msg.hasAttachments,
+      importance: msg.importance,
+      categories: msg.categories,
+      internetMessageId: msg.internetMessageId,
+      toRecipients: msg.toRecipients?.map((r) => r.emailAddress.address),
+      ccRecipients: msg.ccRecipients?.map((r) => r.emailAddress.address),
     },
-    readStatus: msg.IsRead ? "read" : "unread",
+    readStatus: msg.isRead ? "read" : "unread",
     createdAt: new Date(),
     updatedAt: new Date(),
   };
