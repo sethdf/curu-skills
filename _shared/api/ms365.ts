@@ -454,9 +454,10 @@ export const ms365Adapter: SourceAdapter = {
     // Get ALL unread emails with pagination
     const emails = await getAllUnreadEmails(20);
 
-    let filtered = emails;
+    // Filter out invalid items (no Id) and apply date filter
+    let filtered = emails.filter((e) => e.Id);
     if (since) {
-      filtered = emails.filter(
+      filtered = filtered.filter(
         (e) => new Date(e.ReceivedDateTime) > since
       );
     }
