@@ -20,6 +20,7 @@ All operations are available as standalone TypeScript tools:
 
 | Tool | Purpose | Usage |
 |------|---------|-------|
+| `ViewTicket.ts` | View single ticket with pickup prompt | `bun Tools/ViewTicket.ts <id> [--pickup] [--json]` |
 | `MyTickets.ts` | List assigned tickets | `bun Tools/MyTickets.ts [--json]` |
 | `Overdue.ts` | List overdue tickets | `bun Tools/Overdue.ts [--json]` |
 | `Suggest.ts` | AI-powered ticket suggestion | `bun Tools/Suggest.ts [--json]` |
@@ -30,11 +31,28 @@ All operations are available as standalone TypeScript tools:
 
 ```bash
 /sdp                         # Show my assigned tickets
+/sdp 42376                   # View ticket #42376 (prompts for pickup if unassigned)
 /sdp overdue                 # Show overdue tickets
 /sdp suggest                 # Suggest next ticket to work on
 /sdp note 12345 "findings"   # Add note to ticket
 /sdp reply 12345 "response"  # Reply to ticket
 ```
+
+## Automatic Ticket Handling
+
+When you reference a ticket number (e.g., "ticket 42376", "work on 42376", "let's work on ticket 42376"):
+
+1. **Fetch ticket details** - Retrieves full ticket info from SDP
+2. **Check assignment** - Determines if ticket is assigned to you
+3. **Check status** - Verifies if ticket is in working state (in_progress)
+4. **Prompt for pickup** - If unassigned or assigned to someone else, asks if you want to pick it up
+
+This behavior is automatic via `ViewTicket.ts --json` which outputs:
+- `is_assigned_to_me`: boolean
+- `is_unassigned`: boolean
+- `in_progress`: boolean
+- `requires_pickup`: boolean
+- `pickup_suggestion`: string prompt if action needed
 
 ## Zone Awareness
 
@@ -56,6 +74,7 @@ To ensure proper zone context:
 
 | Workflow | Trigger | File |
 |----------|---------|------|
+| **ViewTicket** | "ticket 12345", "work on 12345", "/sdp 12345" | `Workflows/ViewTicket.md` |
 | **MyTickets** | "/sdp", "my tickets", "assigned tickets" | `Workflows/MyTickets.md` |
 | **Overdue** | "overdue tickets", "past due" | `Workflows/Overdue.md` |
 | **Suggest** | "suggest ticket", "what to work on" | `Workflows/Suggest.md` |
