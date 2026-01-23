@@ -138,9 +138,10 @@ export async function getAllUnreadEmails(
   let page = 1;
 
   // First request - get inbox folder and initial page
+  // Use URL encoding (%24) for OData query params to avoid PowerShell escaping issues
   const initialCommand = `
 \$inbox = Get-MgUserMailFolder -UserId '${user}' | Where-Object { \$_.DisplayName -eq 'Inbox' }
-\$uri = "https://graph.microsoft.com/v1.0/users/${user}/mailFolders/\$(\$inbox.Id)/messages?\\\`\$filter=isRead eq false&\\\`\$top=100&\\\`\$select=id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead,toRecipients,hasAttachments,importance,categories"
+\$uri = "https://graph.microsoft.com/v1.0/users/${user}/mailFolders/\$(\$inbox.Id)/messages?%24filter=isRead eq false&%24top=100&%24select=id,subject,from,receivedDateTime,bodyPreview,conversationId,isRead,toRecipients,hasAttachments,importance,categories"
 Invoke-MgGraphRequest -Method GET -Uri \$uri | ConvertTo-Json -Depth 5
 `.trim();
 
