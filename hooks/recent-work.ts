@@ -2,12 +2,13 @@
 /**
  * recent-work.ts - Show recent PAI work sessions
  *
- * Usage: bun run recent-work.ts [--limit N] [--filter PATTERN]
+ * Usage: bun run recent-work.ts [--limit N] [--filter PATTERN] [--cwd PATH]
  *
  * Scans ~/.claude/MEMORY/WORK/ for recent sessions and displays them.
+ * If --cwd is provided, shows work from that directory first, then global.
  */
 
-import { readdirSync, readFileSync, statSync } from "fs";
+import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { parse as parseYaml } from "yaml";
 
@@ -19,9 +20,10 @@ interface WorkMeta {
   created_at: string;
   status: string;
   session_id?: string;
+  cwd?: string; // Added for folder-aware filtering
 }
 
-function getRecentWork(limit: number = 5, filter?: string): WorkMeta[] {
+function getRecentWork(limit: number = 5, filter?: string, cwd?: string): WorkMeta[] {
   try {
     const dirs = readdirSync(WORK_DIR)
       .filter((d) => d.match(/^\d{8}-\d{6}_/)) // Match timestamp format
@@ -29,27 +31,43 @@ function getRecentWork(limit: number = 5, filter?: string): WorkMeta[] {
       .reverse(); // Most recent first
 
     const results: WorkMeta[] = [];
+    const cwdResults: WorkMeta[] = [];
 
     for (const dir of dirs) {
-      if (results.length >= limit) break;
+      // Stop early if we have enough results
+      if (results.length >= limit && (!cwd || cwdResults.length >= limit)) break;
 
       const metaPath = join(WORK_DIR, dir, "META.yaml");
       try {
         const content = readFileSync(metaPath, "utf-8");
         const meta = parseYaml(content) as WorkMeta;
 
-        // Apply filter if provided
+        // Apply text filter if provided
         if (filter && !meta.title.toLowerCase().includes(filter.toLowerCase())) {
           continue;
         }
 
-        results.push(meta);
+        // Track cwd-specific results separately
+        if (cwd && meta.cwd && meta.cwd.startsWith(cwd)) {
+          if (cwdResults.length < limit) {
+            cwdResults.push(meta);
+          }
+        }
+
+        // Also collect global results as fallback
+        if (results.length < limit) {
+          results.push(meta);
+        }
       } catch {
         // Skip if META.yaml doesn't exist or is invalid
         continue;
       }
     }
 
+    // Return cwd-specific results if we have any, otherwise global
+    if (cwd && cwdResults.length > 0) {
+      return cwdResults;
+    }
     return results;
   } catch (error) {
     console.error("Failed to read work directory:", error);
@@ -80,6 +98,7 @@ function main() {
   const args = process.argv.slice(2);
   let limit = 5;
   let filter: string | undefined;
+  let cwd: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--limit" && args[i + 1]) {
@@ -88,10 +107,13 @@ function main() {
     } else if (args[i] === "--filter" && args[i + 1]) {
       filter = args[i + 1];
       i++;
+    } else if (args[i] === "--cwd" && args[i + 1]) {
+      cwd = args[i + 1];
+      i++;
     }
   }
 
-  const work = getRecentWork(limit, filter);
+  const work = getRecentWork(limit, filter, cwd);
 
   if (work.length === 0) {
     console.log("No recent work sessions found.");
