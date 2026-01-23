@@ -165,13 +165,21 @@ Invoke-MgGraphRequest -Method GET -Uri \$uri | ConvertTo-Json -Depth 5
 
       page++;
 
-      // Fetch next page
+      // Fetch next page - escape the URL properly for PowerShell
+      // The nextLink may contain $ characters that need escaping
+      const escapedLink = nextLink.replace(/\$/g, '`$');
       const nextCommand = `
-Invoke-MgGraphRequest -Method GET -Uri '${nextLink}' | ConvertTo-Json -Depth 5
+\$nextUri = "${escapedLink}"
+Invoke-MgGraphRequest -Method GET -Uri \$nextUri | ConvertTo-Json -Depth 5
 `.trim();
 
-      result = await runPowerShell(nextCommand);
-      parsed = JSON.parse(result);
+      try {
+        result = await runPowerShell(nextCommand);
+        parsed = JSON.parse(result);
+      } catch (pageError) {
+        console.error(`Failed to fetch page ${page}: ${pageError}`);
+        break; // Return what we have so far
+      }
     }
 
     return allMessages;
