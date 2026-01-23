@@ -296,13 +296,13 @@ Get-MgUserMessage -UserId '${user}' -Filter "conversationId eq '${conversationId
     const messages = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
 
     return messages.map((m: MS365Message) => ({
-      timestamp: new Date(m.ReceivedDateTime),
+      timestamp: new Date(m.receivedDateTime),
       from: {
-        name: m.From?.EmailAddress?.Name || null,
-        address: m.From?.EmailAddress?.Address || null,
+        name: m.from?.emailAddress?.name || null,
+        address: m.from?.emailAddress?.address || null,
         userId: null,
       },
-      body: m.BodyPreview || "",
+      body: m.bodyPreview || "",
     }));
   } catch (e) {
     console.error(`Failed to get thread context: ${e}`);
@@ -455,10 +455,10 @@ export const ms365Adapter: SourceAdapter = {
     const emails = await getAllUnreadEmails(20);
 
     // Filter out invalid items (no Id) and apply date filter
-    let filtered = emails.filter((e) => e.Id);
+    let filtered = emails.filter((e) => e.id);
     if (since) {
       filtered = filtered.filter(
-        (e) => new Date(e.ReceivedDateTime) > since
+        (e) => new Date(e.receivedDateTime) > since
       );
     }
 
@@ -473,8 +473,8 @@ export const ms365Adapter: SourceAdapter = {
     // itemId is in format "email-ms365:messageId"
     const messageId = itemId.replace("email-ms365:", "");
     const email = await getEmailById(messageId);
-    if (!email?.ConversationId) return [];
-    return getThreadContext(email.ConversationId);
+    if (!email?.conversationId) return [];
+    return getThreadContext(email.conversationId);
   },
 };
 
