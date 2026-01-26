@@ -15,7 +15,7 @@ if tmux list-windows -F '#{window_name}' 2>/dev/null | grep -q '^home$'; then
     tmux select-window -t home
     echo "Switched to existing home window"
 else
-    tmux new-window -n "home" "cd ~/home && claude \"\$(cat .zone-prompt 2>/dev/null)\""
+    tmux new-window -n "home" "cd ~/home && claude \"\$(zone-context)\""
 fi
 ```
 

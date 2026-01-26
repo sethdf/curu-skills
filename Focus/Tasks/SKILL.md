@@ -15,7 +15,7 @@ if tmux list-windows -F '#{window_name}' 2>/dev/null | grep -q '^tasks$'; then
     tmux select-window -t tasks
     echo "Switched to existing tasks window"
 else
-    tmux new-window -n "tasks" "cd ~/work/tasks && claude \"\$(cat .zone-prompt 2>/dev/null)\""
+    tmux new-window -n "tasks" "cd ~/work/tasks && claude \"\$(zone-context)\""
 fi
 ```
 

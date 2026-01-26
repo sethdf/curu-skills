@@ -15,7 +15,7 @@ if tmux list-windows -F '#{window_name}' 2>/dev/null | grep -q '^adhoc$'; then
     tmux select-window -t adhoc
     echo "Switched to existing adhoc window"
 else
-    tmux new-window -n "adhoc" "cd ~/work/adhoc && claude \"\$(cat .zone-prompt 2>/dev/null)\""
+    tmux new-window -n "adhoc" "cd ~/work/adhoc && claude \"\$(zone-context)\""
 fi
 ```
 
