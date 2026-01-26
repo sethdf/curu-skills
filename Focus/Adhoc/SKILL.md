@@ -10,15 +10,21 @@ Opens a new Claude Code session in a fresh tmux window for quick one-off work.
 ## Execution
 
 ```bash
-tmux new-window -n "adhoc" "cd ~/work/adhoc && claude"
+# Switch to existing window or create new one
+if tmux list-windows -F '#{window_name}' 2>/dev/null | grep -q '^adhoc$'; then
+    tmux select-window -t adhoc
+    echo "Switched to existing adhoc window"
+else
+    tmux new-window -n "adhoc" "cd ~/work/adhoc && claude"
+fi
 ```
 
 **Behavior:**
-- Creates new tmux window named "adhoc"
-- Changes to `~/work/adhoc` directory
-- Starts fresh Claude session with proper CLAUDE.md loading
-- Original session continues independently
+- Checks if "adhoc" window already exists
+- If exists: switches to it (prevents duplicates)
+- If not: creates new window in `~/work/adhoc` directory
+- Use for: quick one-off questions, temporary work
 
 ## After Execution
 
-Tell user: "Opened new Claude session in adhoc workspace. Switch with `Ctrl-b n` or `Ctrl-b 1-9`."
+Tell user: "Adhoc workspace ready. Quick questions and temporary work goes here."

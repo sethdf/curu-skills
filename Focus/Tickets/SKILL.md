@@ -10,15 +10,21 @@ Opens a new Claude Code session in a fresh tmux window for ServiceDesk Plus tick
 ## Execution
 
 ```bash
-tmux new-window -n "tickets" "cd ~/work/tickets && claude"
+# Switch to existing window or create new one
+if tmux list-windows -F '#{window_name}' 2>/dev/null | grep -q '^tickets$'; then
+    tmux select-window -t tickets
+    echo "Switched to existing tickets window"
+else
+    tmux new-window -n "tickets" "cd ~/work/tickets && claude"
+fi
 ```
 
 **Behavior:**
-- Creates new tmux window named "tickets"
-- Changes to `~/work/tickets` directory
-- Starts fresh Claude session with proper CLAUDE.md loading
-- Original session continues independently
+- Checks if "tickets" window already exists
+- If exists: switches to it (prevents duplicates)
+- If not: creates new window in `~/work/tickets` directory
+- Use for: ServiceDesk Plus ticket work, support requests
 
 ## After Execution
 
-Tell user: "Opened new Claude session in tickets workspace. Switch with `Ctrl-b n` or `Ctrl-b 1-9`."
+Tell user: "Tickets workspace ready. ServiceDesk Plus and support work goes here."
