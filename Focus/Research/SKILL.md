@@ -15,7 +15,7 @@ if tmux list-windows -F '#{window_name}' 2>/dev/null | grep -q '^research$'; the
     tmux select-window -t research
     echo "Switched to existing research window"
 else
-    tmux new-window -n "research" "cd ~/work/research && claude"
+    tmux new-window -n "research" "cd ~/work/research && claude \"\$(cat .zone-prompt 2>/dev/null)\""
 fi
 ```
 

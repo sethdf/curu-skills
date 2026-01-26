@@ -1,24 +1,30 @@
 ---
 name: Tasks
-description: Open new Claude session in tasks workspace. USE WHEN /tasks.
+description: Open Claude session in tasks workspace for tickets, requests, changes. USE WHEN /tasks.
 ---
 
 # Tasks
 
-Opens a new Claude Code session in a fresh tmux window for individual task work.
+Opens Claude Code in the tasks workspace for tickets, requests, changes, and actionable work items.
 
 ## Execution
 
 ```bash
-tmux new-window -n "tasks" "cd ~/work/tasks && claude"
+# Switch to existing window or create new one
+if tmux list-windows -F '#{window_name}' 2>/dev/null | grep -q '^tasks$'; then
+    tmux select-window -t tasks
+    echo "Switched to existing tasks window"
+else
+    tmux new-window -n "tasks" "cd ~/work/tasks && claude \"\$(cat .zone-prompt 2>/dev/null)\""
+fi
 ```
 
 **Behavior:**
-- Creates new tmux window named "tasks"
-- Changes to `~/work/tasks` directory
-- Starts fresh Claude session with proper CLAUDE.md loading
-- Original session continues independently
+- Checks if "tasks" window already exists
+- If exists: switches to it (prevents duplicates)
+- If not: creates new window, loads .zone-prompt as initial context
+- Use for: ServiceDesk tickets, work requests, change control, any actionable items
 
 ## After Execution
 
-Tell user: "Opened new Claude session in tasks workspace. Switch with `Ctrl-b n` or `Ctrl-b 1-9`."
+Tell user: "Tasks workspace ready. Use Ctrl-b n to switch windows."

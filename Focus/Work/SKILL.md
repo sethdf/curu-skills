@@ -15,7 +15,7 @@ if tmux list-windows -F '#{window_name}' 2>/dev/null | grep -q '^work$'; then
     tmux select-window -t work
     echo "Switched to existing work window"
 else
-    tmux new-window -n "work" "cd ~/work && claude"
+    tmux new-window -n "work" "cd ~/work && claude \"\$(cat .zone-prompt 2>/dev/null)\""
 fi
 ```
 
