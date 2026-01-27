@@ -1,7 +1,13 @@
 ---
 name: UnifiedInbox
-description: Unified inbox infrastructure for all message sources. USE WHEN syncing messages, querying inbox, viewing stats, or managing read status across email, chat, and tickets.
+description: "[DEPRECATED] Use 'intake' CLI instead. See DEPRECATED.md for migration."
+deprecated: true
+successor: imladris/lib/intake
 ---
+
+> **DEPRECATED**: This skill is deprecated in favor of the Intake System.
+> Use `intake sync`, `intake query`, `intake stats` instead.
+> See `DEPRECATED.md` in this directory for migration details.
 
 ## Customization
 
