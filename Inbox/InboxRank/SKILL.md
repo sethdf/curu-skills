@@ -1,7 +1,17 @@
 ---
 name: InboxRank
-description: AI-powered inbox categorization and prioritization. USE WHEN triaging messages, ranking inbox items, generating triage reports, or getting next-action suggestions.
+description: "[DEPRECATED] Triage is now built into 'intake triage'. See UnifiedInbox/DEPRECATED.md."
+deprecated: true
+successor: imladris/lib/intake/triage
 ---
+
+> **DEPRECATED**: This skill is deprecated. The Intake System now includes built-in triage with:
+> - Enrichment (dates, entities via chrono-node/compromise)
+> - Deterministic rules (json-rules-engine)
+> - Similarity search (vector-based classification)
+> - AI (only for ambiguous cases)
+>
+> Use `intake triage run` instead.
 
 ## Customization
 
